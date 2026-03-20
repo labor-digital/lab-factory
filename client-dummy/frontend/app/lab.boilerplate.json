@@ -1,0 +1,10 @@
+{
+    "name": "Node 22",
+    "replaceProjectNameIn": [
+        ".env.template",
+        "README.md",
+        "src/composer.json",
+        "src/package.json",
+        "src/webroot/index.php"
+    ]
+}

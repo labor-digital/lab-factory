@@ -1,0 +1,26 @@
+version: '2'
+services:
+  app:
+    restart: "no"
+    image: '${DOCKER_BASE_IMAGE}:${DOCKER_BASE_TAG}-dev'
+    container_name: '${COMPOSE_PROJECT_NAME}'
+    ports:
+      - "${APP_IP}:80:80"
+      - "${APP_IP}:443:443"
+    env_file:
+      - .env
+    volumes:
+      - ${APP_SSH_DIR}:/home/ssh-labor/.ssh
+      - ${APP_WORKING_DIR}:/var/www/html
+      - ${APP_LOG_DIR}:/var/www/logs
+      - ${APP_OPT_DIR}/bootstrap.sh:/opt/project/bootstrap.sh
+      - ${APP_OPT_DIR}/build.sh:/opt/project/build.sh
+      - ${APP_OPT_DIR}/development.sh:/opt/project/development.sh
+      - ${APP_OPT_DIR}/directories.sh:/opt/project/directories.sh
+      - ${APP_OPT_DIR}/permissions.sh:/opt/project/permissions.sh
+      - ${APP_ROOT_DIR}/.env.app:/opt/.env.app
+
+      # Add factory-core/nuxt-layer to /var/www/html/factory-core/nuxt-layer
+      - ${APP_ROOT_DIR}../../../factory-core/nuxt-layer:/var/www/modules/nuxt-layer
+      - ${APP_ROOT_DIR}../../factory.json:/var/www/modules/factory.json
+

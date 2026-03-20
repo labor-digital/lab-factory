@@ -1,0 +1,82 @@
+services:
+  app:
+    restart: "no"
+    image: '${DOCKER_BASE_IMAGE}:${DOCKER_BASE_TAG}-dev'
+    container_name: '${COMPOSE_PROJECT_NAME}'
+    #    entrypoint: ["/opt/bootstrap.sh"] ## Add to avoid Doppler
+    depends_on:
+      data:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_started
+      import:
+        condition: service_completed_successfully
+    ports:
+      - "${APP_IP}:80:80"
+      - "${APP_IP}:443:443"
+    env_file:
+      - .env
+    environment:
+      - 'APP_MYSQL_HOST=${COMPOSE_PROJECT_NAME}-mysql'
+    volumes:
+      - ${APP_SSH_DIR}:/home/ssh-labor/.ssh
+      - ${APP_WORKING_DIR}:/var/www/html
+      - ${APP_LOG_DIR}:/var/www/logs
+      - ${APP_OPT_DIR}/bootstrap.sh:/opt/project/bootstrap.sh
+      - ${APP_OPT_DIR}/build.sh:/opt/project/build.sh
+      - ${APP_OPT_DIR}/development.sh:/opt/project/development.sh
+      - ${APP_OPT_DIR}/directories.sh:/opt/project/directories.sh
+      - ${APP_OPT_DIR}/permissions.sh:/opt/project/permissions.sh
+      - ${APP_ROOT_DIR}/.env.app:/opt/.env.app
+      - ${APP_ROOT_DIR}../../../factory-core/typo3-extension:/var/www/modules/typo3-extension
+    volumes_from:
+      - data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "-k", "https://${APP_DOMAIN}/test.php" ]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+  mysql:
+    restart: "no"
+    container_name: '${COMPOSE_PROJECT_NAME}-mysql'
+    image: mariadb:12.0
+    env_file:
+      - .env
+    ports:
+      - "${APP_IP}:3306:3306"
+  data:
+    restart: "no"
+    container_name: '${COMPOSE_PROJECT_NAME}-data'
+    image: ubuntu
+    volumes:
+      - '${APP_DATA_DIR}:/var/www/html_data'
+  import:
+    restart: "no"
+    container_name: '${COMPOSE_PROJECT_NAME}-import'
+    image: 'labordigital/import-export:latest'
+    depends_on:
+      - mysql
+      - data
+    env_file:
+      - .env
+    environment:
+      - 'APP_MYSQL_HOST=${COMPOSE_PROJECT_NAME}-mysql'
+      - MYSQL_PORT=3306
+    volumes:
+      - '${APP_IMPORT_DIR}:/var/www/html_import'
+    volumes_from:
+      - data
+  test:
+    restart: "no"
+    container_name: ${COMPOSE_PROJECT_NAME}-test
+    image: labordigital/playwright:1.56.1
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      - TEST_BASE_URL=https://${APP_DOMAIN}
+      - TEST_ROOT_DIR=/opt/testing
+    volumes:
+      - "./tests:/opt/testing"
+    links:
+      - app:${APP_DOMAIN}

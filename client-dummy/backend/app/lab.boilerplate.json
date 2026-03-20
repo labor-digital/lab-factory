@@ -1,0 +1,11 @@
+{
+    "name": "PHP 8.4",
+    "replaceProjectNameIn": [
+        ".env.template",
+        "README.md",
+        "src/composer.json",
+        "src/package.json",
+        "src/webroot/index.php",
+        "tests/.env"
+    ]
+}

@@ -1,0 +1,56 @@
+services:
+  app:
+    restart: 'no'
+    image: ${AWS_ECR_DEFAULT_URL}/${PROJECT_NAME}:${AWS_ECR_DEFAULT_TAG_PREFIX}${BITBUCKET_COMMIT}
+    depends_on:
+      data:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_started
+      import:
+        condition: service_completed_successfully
+    ports:
+      - 80:80
+      - 443:443
+    env_file:
+      - .env
+    environment:
+      - APP_MYSQL_HOST=mysql
+      - APACHE_LOG_DIR=/var/www/logs
+      - DOPPLER_TOKEN=${DOPPLER_DEFAULT_TOKEN}
+    volumes_from:
+      - data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "-k", "https://localhost/test.php" ]
+      interval: 15s
+      timeout: 3s
+      retries: 2
+  mysql:
+    restart: 'no'
+    image: mariadb:12.0
+    env_file:
+      - .env
+    environment:
+      - MARIADB_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    ports:
+      - 3306:3306
+  data:
+    restart: 'no'
+    image: ubuntu
+    volumes:
+      - ./tmp-mount:/var/www/html_data
+  import:
+    restart: 'no'
+    image: labordigital/import-export:latest
+    depends_on:
+      - mysql
+      - data
+    env_file:
+      - .env
+    environment:
+      - APP_MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+    volumes:
+      - ./test-data:/var/www/html_import
+    volumes_from:
+      - data

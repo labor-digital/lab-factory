@@ -1,0 +1,8 @@
+{
+	"name": "@labor-digital/factory-nuxt-layer",
+	"version": "1.0.0",
+	"type": "module",
+	"dependencies": {
+		"@t3headless/nuxt-typo3": "latest"
+	}
+}

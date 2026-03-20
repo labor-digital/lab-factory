@@ -1,0 +1,64 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+
+const props = defineProps<{
+  content: any
+}>()
+
+const parsedData = computed(() => {
+  const data = props.content?.content || {}
+  
+  // Parse links
+  const links = (data.links || []).map((link: any) => {
+    const linkData = link.content || link
+    return {
+      label: linkData.label,
+      to: linkData.to?.url || linkData.to,
+      color: linkData.color || 'primary',
+      variant: linkData.variant || 'solid',
+      size: linkData.size || 'md',
+      icon: linkData.icon,
+      trailing: linkData.trailing === '1' || linkData.trailing === true
+    }
+  })
+
+  // Parse features
+  const features = (data.features || []).map((feature: any) => {
+    const featureData = feature.content || feature
+    return {
+      title: featureData.title,
+      description: featureData.description,
+      icon: featureData.icon,
+      orientation: featureData.orientation || 'horizontal'
+    }
+  })
+
+  // Parse image
+  let image = null
+  if (data.image && data.image.length > 0) {
+    const imgData = data.image[0]
+    image = {
+      src: imgData.publicUrl || imgData.url,
+      alt: imgData.properties?.alternative || imgData.title || '',
+      width: imgData.properties?.width,
+      height: imgData.properties?.height
+    }
+  }
+
+  return {
+    headline: data.headline,
+    icon: data.icon,
+    title: data.title,
+    description: data.description,
+    links: links.length > 0 ? links : undefined,
+    features: features.length > 0 ? features : undefined,
+    orientation: data.orientation || 'vertical',
+    reverse: data.reverse === '1' || data.reverse === true,
+    image
+  }
+})
+</script>
+
+<template>
+  <slot :uiProps="parsedData" />
+</template>

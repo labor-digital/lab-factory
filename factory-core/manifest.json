@@ -1,0 +1,29 @@
+{
+	"PageHero": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
+	"PageSection": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
+	"BlogPosts": {
+		"version": "1.0.0",
+		"composer_dependencies": [
+			"georgringer/news:^11.4"
+		],
+		"npm_dependencies": [
+			"@nuxt/ui",
+			"@t3headless/nuxt-typo3-news:^2.0"
+		],
+		"nuxt_ui": true
+	}
+}

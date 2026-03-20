@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.bashrc text eol=lf
+*.bashrc-extension text eol=lf
+*.sh text eol=lf
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+
+tests/test-data/**/* filter=lfs diff=lfs merge=lfs -text

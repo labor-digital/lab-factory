@@ -1,0 +1,17 @@
+{
+  "name": "@labordigital/test",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx playwright test",
+    "test-update": "npx playwright test --update-snapshots"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/node": "24.10.1"
+  }
+}

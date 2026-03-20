@@ -1,0 +1,40 @@
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.app
+!.env.template
+
+# Docker
+docker-compose.override.yml
+
+# TYPO3
+var/
+public/typo3temp/
+public/typo3conf/deprecation_*
+public/typo3conf/ENABLE_INSTALL_TOOL
+public/fileadmin/_processed_/
+vendor/
+composer.lock
+
+# Nuxt.js
+.nuxt/
+.output/
+dist/
+node_modules/
+.cache/
+.nitro/
+
+# Project-specific data directories
+logs/
+data/
+ssh/
+import/
