@@ -1,0 +1,7 @@
+{
+    "name": "Node 22",
+    "replaceProjectNameIn": [
+        ".env.template",
+        "src/package.json"
+    ]
+}

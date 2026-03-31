@@ -1,0 +1,16 @@
+{
+	"name": "labor-digital/client-sitepackage",
+	"type": "typo3-cms-extension",
+	"description": "Client-specific TYPO3 site package for {{PROJECT_LABEL}}",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": "^8.4",
+		"typo3/cms-core": "^13.4",
+		"labor-digital/factory-core": "@dev"
+	},
+	"extra": {
+		"typo3/cms": {
+			"extension-key": "client_sitepackage"
+		}
+	}
+}
