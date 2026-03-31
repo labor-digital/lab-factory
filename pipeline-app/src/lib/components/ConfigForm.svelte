@@ -43,7 +43,7 @@
 	</button>
 
 	{#if !collapsed}
-		<div class="px-4 pb-4 space-y-4 border-t border-zinc-800/50">
+		<div class="px-4 pb-4 space-y-6 border-t border-zinc-800/50">
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
 				<div class="space-y-1">
 					<label for="projectName" class="text-xs text-zinc-400 uppercase tracking-wider">Project Name</label>
@@ -100,7 +100,32 @@
 				onchange={(v) => update('componentsToTest', v)}
 			/>
 
-			<div class="flex items-center gap-3">
+			<div>
+				<p class="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Languages</p>
+				<div class="flex items-center gap-4">
+					{#each [{ code: 'de', label: 'German (de)' }, { code: 'en', label: 'English (en)' }] as lang}
+						<label class="flex items-center gap-2 cursor-pointer">
+							<input
+								type="checkbox"
+								checked={config.languages.includes(lang.code)}
+								onchange={() => {
+									const has = config.languages.includes(lang.code);
+									const next = has
+										? config.languages.filter((l) => l !== lang.code)
+										: [...config.languages, lang.code];
+									if (next.length > 0) update('languages', next);
+								}}
+								{disabled}
+								class="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-cyan-500 focus:ring-cyan-500/30"
+							/>
+							<span class="text-sm text-zinc-300">{lang.label}</span>
+						</label>
+					{/each}
+				</div>
+			</div>
+
+			<div>
+				<p class="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Docker</p>
 				<label class="flex items-center gap-2 cursor-pointer">
 					<input
 						type="checkbox"
@@ -201,8 +226,10 @@
 	{/if}
 </div>
 
-<SettingsCard
-	settings={config.settings}
-	{disabled}
-	onchange={(s) => update('settings', s)}
-/>
+<div class="mt-4">
+	<SettingsCard
+		settings={config.settings}
+		{disabled}
+		onchange={(s) => update('settings', s)}
+	/>
+</div>

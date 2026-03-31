@@ -39,6 +39,7 @@ export interface PipelineConfig {
 	appEncryptionKey: string;
 	appInstallToolPassword: string;
 	typo3ApiBaseUrl: string;
+	languages: string[];
 	includePhase3: boolean;
 	sudoPassword: string;
 	settings: FactorySettings;

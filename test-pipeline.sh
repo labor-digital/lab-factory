@@ -157,14 +157,21 @@ pass "Clean slate ready"
 # ---------------------------------------------------------------------------
 phase_header 1 "Scaffolding" "🏗️"
 
-fake_term "lab factory:create $TEST_PROJECT_NAME --force --json --secret APP_ENCRYPTION_KEY=... --secret APP_INSTALL_TOOL_PASSWORD=... --secret TYPO3_API_BASE_URL=..." \
+TYPO3_API_BASE_URL="https://tes-cli-aut-bac.labor.systems"
+APP_FRONTEND_DOMAIN="${TYPO3_API_BASE_URL#https://}"
+APP_FRONTEND_DOMAIN="${APP_FRONTEND_DOMAIN/-bac./-fro.}"
+APP_COOKIE_DOMAIN=".${APP_FRONTEND_DOMAIN#*.}"
+
+fake_term "lab factory:create $TEST_PROJECT_NAME --force --json --secret APP_ENCRYPTION_KEY=... --secret APP_INSTALL_TOOL_PASSWORD=... --secret TYPO3_API_BASE_URL=... --secret APP_FRONTEND_DOMAIN=... --secret APP_COOKIE_DOMAIN=..." \
 	$LAB_CLI_BIN factory:create "$TEST_PROJECT_NAME" \
 	--template-path "$FACTORY_CORE_PATH/templates" \
 	--force \
 	--json \
 	--secret "APP_ENCRYPTION_KEY=$APP_ENCRYPTION_KEY" \
 	--secret "APP_INSTALL_TOOL_PASSWORD=$APP_INSTALL_TOOL_PASSWORD" \
-	--secret "TYPO3_API_BASE_URL=https://tes-cli-aut-bac.labor.systems"
+	--secret "TYPO3_API_BASE_URL=$TYPO3_API_BASE_URL" \
+	--secret "APP_FRONTEND_DOMAIN=$APP_FRONTEND_DOMAIN" \
+	--secret "APP_COOKIE_DOMAIN=$APP_COOKIE_DOMAIN"
 
 assert_file_exists "$TEST_PROJECT_NAME/backend/app/src/factory.json" "backend factory.json"
 assert_file_exists "$TEST_PROJECT_NAME/backend/app/src/composer.json" "backend composer.json"
@@ -180,7 +187,6 @@ ln -sfn "$FACTORY_CORE_ABS" "$TEST_PROJECT_NAME/frontend/app/factory-core"
 # Write TYPO3_API_BASE_URL to the frontend .env.app (secrets file mounted into the container)
 # Must NOT write to .env here — lab up needs to create .env from .env.template to populate
 # all APP_* directory variables that docker-compose.yml volume mounts require.
-TYPO3_API_BASE_URL="https://tes-cli-aut-bac.labor.systems"
 echo "TYPO3_API_BASE_URL=$TYPO3_API_BASE_URL" >> "$TEST_PROJECT_NAME/frontend/app/.env.app"
 info "Set TYPO3_API_BASE_URL=$TYPO3_API_BASE_URL in frontend .env.app"
 

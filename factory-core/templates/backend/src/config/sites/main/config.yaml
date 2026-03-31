@@ -2,6 +2,7 @@ base: 'https://%env(APP_DOMAIN)%'
 dependencies:
   - labor-digital/client_sitepackage
 frontendBase: 'https://%env(APP_FRONTEND_DOMAIN)%'
+websiteTitle: '%env(APP_SITENAME)%'
 headless: 1
 languages:
   -
@@ -27,4 +28,3 @@ languages:
     websiteTitle: '%env(APP_SITENAME)%'
     languageId: 1
 rootPageId: 1
-websiteTitle: '%env(APP_SITENAME)%'

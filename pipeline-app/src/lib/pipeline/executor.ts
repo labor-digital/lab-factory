@@ -191,6 +191,10 @@ async function scaffoldPhase(
 	const factoryCoreAbs = resolve(projectRoot, config.factoryCorePath);
 	const templatePath = resolve(factoryCoreAbs, 'templates');
 
+	// Derive preview env vars from backend URL
+	const frontendDomain = config.typo3ApiBaseUrl.replace(/^https?:\/\//, '').replace(/-bac\./, '-fro.');
+	const cookieDomain = '.' + frontendDomain.split('.').slice(1).join('.');
+
 	// Run factory:create
 	await runCommand(
 		cmd,
@@ -207,7 +211,11 @@ async function scaffoldPhase(
 			'--secret',
 			`APP_INSTALL_TOOL_PASSWORD=${config.appInstallToolPassword}`,
 			'--secret',
-			`TYPO3_API_BASE_URL=${config.typo3ApiBaseUrl}`
+			`TYPO3_API_BASE_URL=${config.typo3ApiBaseUrl}`,
+			'--secret',
+			`APP_FRONTEND_DOMAIN=${frontendDomain}`,
+			'--secret',
+			`APP_COOKIE_DOMAIN=${cookieDomain}`
 		],
 		projectRoot,
 		emit,
@@ -249,18 +257,6 @@ async function scaffoldPhase(
 		type: 'step:output',
 		stepId: 'scaffold-env',
 		data: `Set TYPO3_API_BASE_URL in frontend .env.app`,
-		timestamp: Date.now()
-	});
-
-	// Write preview env vars to backend .env.app
-	const frontendDomain = config.typo3ApiBaseUrl.replace(/^https?:\/\//, '').replace(/-bac\./, '-fro.');
-	const cookieDomain = '.' + frontendDomain.split('.').slice(1).join('.');
-	const backendEnvAppPath = resolve(projectDir, 'backend/app/.env.app');
-	await appendFile(backendEnvAppPath, `APP_FRONTEND_DOMAIN=${frontendDomain}\nAPP_COOKIE_DOMAIN=${cookieDomain}\n`);
-	emit({
-		type: 'step:output',
-		stepId: 'scaffold-env-preview',
-		data: `Set APP_FRONTEND_DOMAIN=${frontendDomain} and APP_COOKIE_DOMAIN=${cookieDomain} in backend .env.app`,
 		timestamp: Date.now()
 	});
 
@@ -440,7 +436,7 @@ async function dockerPhase(
 	// Base seeder
 	await runCommand(
 		'docker',
-		['compose', 'exec', '-w', '/var/www/html', 'app', 'vendor/bin/typo3', 'factory:seed:init', '--lang', 'de,en'],
+		['compose', 'exec', '-w', '/var/www/html', 'app', 'vendor/bin/typo3', 'factory:seed:init', '--lang', config.languages.join(',')],
 		backendApp,
 		emit,
 		'docker-seed-init',

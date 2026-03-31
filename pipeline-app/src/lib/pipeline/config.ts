@@ -35,6 +35,7 @@ export const DEFAULT_CONFIG: PipelineConfig = {
 	appEncryptionKey: 'test-encryption-key-0123456789abcdef0123456789abcdef',
 	appInstallToolPassword: 'Password1!',
 	typo3ApiBaseUrl: 'https://tes-cli-aut-bac.labor.systems',
+	languages: ['de', 'en'],
 	includePhase3: false,
 	sudoPassword: '',
 	settings: DEFAULT_SETTINGS
