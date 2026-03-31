@@ -15,6 +15,92 @@
 		],
 		"nuxt_ui": true
 	},
+	"PageFeature": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
+	"PageGrid": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
+	"PageCta": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
+	"PageLogos": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
+	"Accordion": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
+	"Carousel": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
+	"ButtonGroup": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
+	"Table": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
+	"Text": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [],
+		"nuxt_ui": false
+	},
+	"Header": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
+	"Separator": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
 	"BlogPosts": {
 		"version": "1.0.0",
 		"composer_dependencies": [
