@@ -3,6 +3,7 @@
 	"version": "1.0.0",
 	"type": "module",
 	"dependencies": {
-		"@t3headless/nuxt-typo3": "latest"
+		"@t3headless/nuxt-typo3": "^2.3.1",
+		"@nuxt/kit": "^4.4.2"
 	}
 }
