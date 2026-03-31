@@ -351,12 +351,20 @@
 							<div class="space-y-3 mb-5">
 								<div class="flex items-start gap-3">
 									<span class="text-zinc-500 text-xs uppercase tracking-wider w-20 shrink-0 pt-0.5">Frontend</span>
-									<a
-										href={frontendUrl}
-										target="_blank"
-										rel="noopener noreferrer"
-										class="text-cyan-400 hover:text-cyan-300 text-sm underline underline-offset-2 break-all"
-									>{frontendUrl}</a>
+									<div class="space-y-1">
+										<a
+											href={frontendUrl}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="text-cyan-400 hover:text-cyan-300 text-sm underline underline-offset-2 break-all block"
+										>{frontendUrl}</a>
+										<a
+											href="{frontendUrl}/contentblocks-collection"
+											target="_blank"
+											rel="noopener noreferrer"
+											class="text-cyan-400/70 hover:text-cyan-300 text-xs underline underline-offset-2 break-all block"
+										>{frontendUrl}/contentblocks-collection</a>
+									</div>
 								</div>
 								<div class="flex items-start gap-3">
 									<span class="text-zinc-500 text-xs uppercase tracking-wider w-20 shrink-0 pt-0.5">Backend</span>

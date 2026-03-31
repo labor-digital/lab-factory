@@ -1,6 +1,34 @@
 export type PhaseId = 0 | 1 | 2 | 3;
 export type StepStatus = 'pending' | 'running' | 'passed' | 'failed' | 'skipped';
 
+export type TailwindColor =
+	| 'red' | 'orange' | 'amber' | 'yellow' | 'lime' | 'green'
+	| 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo'
+	| 'violet' | 'purple' | 'fuchsia' | 'pink' | 'rose';
+
+export type NeutralColor = 'slate' | 'gray' | 'zinc' | 'neutral' | 'stone';
+
+export type ColorMode = 'system' | 'light' | 'dark';
+
+export interface FactorySettings {
+	colors: {
+		primary: TailwindColor;
+		secondary: TailwindColor | NeutralColor;
+		success: TailwindColor;
+		info: TailwindColor;
+		warning: TailwindColor;
+		error: TailwindColor;
+		neutral: NeutralColor;
+	};
+	radius: string;
+	fonts: {
+		sans: string;
+		mono: string;
+	};
+	breakpoints: Record<string, string>;
+	colorMode: ColorMode;
+}
+
 export interface PipelineConfig {
 	labCliBin: string;
 	factoryCorePath: string;
@@ -13,6 +41,7 @@ export interface PipelineConfig {
 	typo3ApiBaseUrl: string;
 	includePhase3: boolean;
 	sudoPassword: string;
+	settings: FactorySettings;
 }
 
 export interface StepEvent {

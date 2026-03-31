@@ -42,3 +42,8 @@ data/
 ssh/
 import/
 test-*/
+
+# svelte
+kit
+.svelte-kit/
+build/

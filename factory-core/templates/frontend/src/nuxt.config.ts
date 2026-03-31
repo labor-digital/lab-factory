@@ -1,6 +1,6 @@
 export default defineNuxtConfig({
 	extends: ['../modules/nuxt-layer'],
-	modules: ['@nuxt/ui', './modules/factory-components'],
+	modules: ['@nuxt/ui', './modules/factory-components', './modules/factory-settings'],
 	css: ['~/assets/css/main.css'],
 	typo3: {
 		api: {

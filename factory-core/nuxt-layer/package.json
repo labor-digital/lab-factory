@@ -5,5 +5,13 @@
 	"dependencies": {
 		"@t3headless/nuxt-typo3": "^2.3.1",
 		"@nuxt/kit": "^4.4.2"
+	},
+	"peerDependencies": {
+		"@nuxt/ui": "^4.0.0"
+	},
+	"peerDependenciesMeta": {
+		"@nuxt/ui": {
+			"optional": true
+		}
 	}
 }

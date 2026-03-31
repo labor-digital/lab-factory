@@ -3,6 +3,7 @@
 	import type { PipelineConfig, Manifest } from '$lib/pipeline/types.js';
 	import ComponentPicker from './ComponentPicker.svelte';
 	import PasswordInput from './PasswordInput.svelte';
+	import SettingsCard from './SettingsCard.svelte';
 
 	interface Props {
 		config: PipelineConfig;
@@ -199,3 +200,9 @@
 		</div>
 	{/if}
 </div>
+
+<SettingsCard
+	settings={config.settings}
+	{disabled}
+	onchange={(s) => update('settings', s)}
+/>

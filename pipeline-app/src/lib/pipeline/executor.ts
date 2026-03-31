@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { rm, symlink, unlink, appendFile, stat } from 'node:fs/promises';
+import { rm, symlink, unlink, appendFile, stat, readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import type { PipelineConfig, StepEvent, PhaseId } from './types.js';
 import { assertFileExists, assertJsonContains } from './assertions.js';
@@ -229,6 +229,18 @@ async function scaffoldPhase(
 	await forceSymlink(factoryCoreAbs, resolve(projectDir, 'backend/app/factory-core'));
 	await forceSymlink(factoryCoreAbs, resolve(projectDir, 'frontend/app/factory-core'));
 	emit({ type: 'step:pass', stepId, data: 'factory-core symlinked to backend + frontend', timestamp: Date.now() });
+
+	// Write settings to factory.json
+	const settingsStepId = 'scaffold-settings';
+	emit({ type: 'step:start', stepId: settingsStepId, data: 'Writing settings to factory.json', timestamp: Date.now() });
+	for (const subdir of ['frontend/app/src', 'backend/app/src']) {
+		const factoryJsonPath = resolve(projectDir, subdir, 'factory.json');
+		const raw = await readFile(factoryJsonPath, 'utf-8');
+		const json = JSON.parse(raw);
+		json.settings = config.settings;
+		await writeFile(factoryJsonPath, JSON.stringify(json, null, '\t') + '\n');
+	}
+	emit({ type: 'step:pass', stepId: settingsStepId, data: 'Settings written to factory.json', timestamp: Date.now() });
 
 	// Write TYPO3_API_BASE_URL to frontend .env.app
 	const envAppPath = resolve(projectDir, 'frontend/app/.env.app');

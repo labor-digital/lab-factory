@@ -1,4 +1,28 @@
 {
 	"core_version": "1.0.0",
-	"active_components": []
+	"active_components": [],
+	"settings": {
+		"colors": {
+			"primary": "blue",
+			"secondary": "slate",
+			"success": "green",
+			"info": "blue",
+			"warning": "yellow",
+			"error": "red",
+			"neutral": "slate"
+		},
+		"radius": "0.25rem",
+		"fonts": {
+			"sans": "Inter",
+			"mono": "JetBrains Mono"
+		},
+		"breakpoints": {
+			"sm": "640px",
+			"md": "768px",
+			"lg": "1024px",
+			"xl": "1280px",
+			"2xl": "1536px"
+		},
+		"colorMode": "system"
+	}
 }
