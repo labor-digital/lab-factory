@@ -1,6 +1,9 @@
 # IDE
 .idea/
 .vscode/
+.history/
+.playwright-mcp/
+.claude/
 
 # OS
 .DS_Store
