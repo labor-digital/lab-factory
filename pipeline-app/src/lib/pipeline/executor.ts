@@ -252,6 +252,18 @@ async function scaffoldPhase(
 		timestamp: Date.now()
 	});
 
+	// Write preview env vars to backend .env.app
+	const frontendDomain = config.typo3ApiBaseUrl.replace(/^https?:\/\//, '').replace(/-bac\./, '-fro.');
+	const cookieDomain = '.' + frontendDomain.split('.').slice(1).join('.');
+	const backendEnvAppPath = resolve(projectDir, 'backend/app/.env.app');
+	await appendFile(backendEnvAppPath, `APP_FRONTEND_DOMAIN=${frontendDomain}\nAPP_COOKIE_DOMAIN=${cookieDomain}\n`);
+	emit({
+		type: 'step:output',
+		stepId: 'scaffold-env-preview',
+		data: `Set APP_FRONTEND_DOMAIN=${frontendDomain} and APP_COOKIE_DOMAIN=${cookieDomain} in backend .env.app`,
+		timestamp: Date.now()
+	});
+
 	emit({ type: 'phase:end', phase: 1, data: 'Project scaffolded', timestamp: Date.now() });
 }
 

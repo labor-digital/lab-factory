@@ -11,6 +11,7 @@ $GLOBALS['TYPO3_CONF_VARS'] = array_replace_recursive(
         ],
         'BE' => [
             'installToolPassword' => getenv('APP_INSTALL_TOOL_PASSWORD'),
+            'cookieDomain' => getenv('APP_COOKIE_DOMAIN'),
         ],
         'DB' => [
             'Connections' => [

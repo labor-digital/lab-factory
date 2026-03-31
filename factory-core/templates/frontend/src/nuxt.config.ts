@@ -5,6 +5,7 @@ export default defineNuxtConfig({
 	typo3: {
 		api: {
 			baseUrl: process.env.TYPO3_API_BASE_URL || '',
+			proxyReqHeaders: ['cookie'],
 		},
 	},
 	devServer: {
