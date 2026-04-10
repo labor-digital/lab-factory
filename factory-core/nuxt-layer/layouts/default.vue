@@ -1,29 +1,19 @@
 <template>
-  <div>
-    <UHeader title="Factory" to="/" mode="drawer">
-      <UNavigationMenu :items="navigationItems" />
+  <div class="min-h-screen flex flex-col">
+    <LayoutNavbar
+      title="Factory"
+      to="/"
+      :items="navigationItems"
+    />
 
-      <template #body>
-        <UNavigationMenu
-          orientation="vertical"
-          :items="navigationItems"
-        />
-      </template>
-    </UHeader>
-
-    <main>
+    <main class="flex-1">
       <slot />
     </main>
 
-    <UFooter>
-      <template #left>
-        <span class="text-sm text-(--ui-text-muted)">
-          &copy; {{ new Date().getFullYear() }} Factory
-        </span>
-      </template>
-
-      <UNavigationMenu :items="footerNavigationItems" />
-    </UFooter>
+    <LayoutFooter
+      title="Factory"
+      :items="footerNavigationItems"
+    />
   </div>
 </template>
 

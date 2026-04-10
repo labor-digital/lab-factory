@@ -4,6 +4,7 @@ import { addComponentsDir, defineNuxtModule } from '@nuxt/kit'
 // Register Factory layer components:
 // - Ce components globally (prefix T3Ce) for nuxt-typo3's resolveDynamicComponent()
 // - Content components (prefix T3Content) as auto-imports for Ce templates
+// - Layout components (prefix Layout) for navbar/footer
 export default defineNuxtModule({
   meta: {
     name: 'factory-ce-global'
@@ -19,6 +20,11 @@ export default defineNuxtModule({
       path: fileURLToPath(new URL('../components/T3/Content', import.meta.url)),
       extensions: ['vue'],
       prefix: 'T3Content'
+    })
+    addComponentsDir({
+      path: fileURLToPath(new URL('../components/Layout', import.meta.url)),
+      extensions: ['vue'],
+      prefix: 'Layout'
     })
   }
 })
