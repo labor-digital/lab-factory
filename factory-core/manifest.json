@@ -1,19 +1,47 @@
 {
+	"Button": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@iconify/vue"
+		],
+		"nuxt_ui": false
+	},
 	"PageHero": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
 		"npm_dependencies": [
-			"@nuxt/ui"
+			"@splidejs/vue-splide",
+			"@iconify/vue"
 		],
-		"nuxt_ui": true
+		"nuxt_ui": false
 	},
 	"PageSection": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
 		"npm_dependencies": [
-			"@nuxt/ui"
+			"@splidejs/vue-splide",
+			"@iconify/vue"
 		],
-		"nuxt_ui": true
+		"nuxt_ui": false
+	},
+	"TextSlider": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@splidejs/vue-splide",
+			"@iconify/vue"
+		],
+		"nuxt_ui": false
+	},
+	"ReferenceList": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@splidejs/vue-splide",
+			"@iconify/vue"
+		],
+		"nuxt_ui": false
 	},
 	"PageFeature": {
 		"version": "1.0.0",
@@ -101,6 +129,14 @@
 		],
 		"nuxt_ui": true
 	},
+	"PageContact": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": [
+			"@nuxt/ui"
+		],
+		"nuxt_ui": true
+	},
 	"BlogPosts": {
 		"version": "1.0.0",
 		"composer_dependencies": [
@@ -111,5 +147,14 @@
 			"@t3headless/nuxt-typo3-news:^2.0"
 		],
 		"nuxt_ui": true
+	},
+	"record_types": {
+		"Property": {
+			"version": "1.0.0",
+			"composer_dependencies": [],
+			"npm_dependencies": [],
+			"typo3_table": "tx_factorycore_property",
+			"nuxt_ui": false
+		}
 	}
 }
