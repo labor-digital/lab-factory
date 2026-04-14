@@ -14,9 +14,9 @@ const parsedData = computed(() => {
     return {
       label: linkData.label,
       to: linkData.to?.url || linkData.to,
-      color: linkData.color || 'primary',
-      variant: linkData.variant || 'solid',
-      size: linkData.size || 'lg',
+      color: unwrapSelect(linkData.color, 'primary'),
+      variant: unwrapSelect(linkData.variant, 'solid'),
+      size: unwrapSelect(linkData.size, 'lg'),
       icon: linkData.icon,
       trailing: linkData.trailing === '1' || linkData.trailing === true
     }
@@ -37,9 +37,9 @@ const parsedData = computed(() => {
   return {
     title: data.title,
     description: data.description,
-    variant: data.variant || 'outline',
+    variant: unwrapSelect(data.variant, 'outline'),
     links: links.length > 0 ? links : undefined,
-    orientation: data.orientation || 'vertical',
+    orientation: unwrapSelect(data.orientation, 'vertical'),
     reverse: data.reverse === '1' || data.reverse === true,
     image
   }

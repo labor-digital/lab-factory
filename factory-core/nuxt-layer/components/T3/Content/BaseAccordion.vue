@@ -19,7 +19,7 @@ const parsedData = computed(() => {
   })
 
   return {
-    type: data.type || 'single',
+    type: unwrapSelect(data.type, 'single'),
     collapsible: data.collapsible === '1' || data.collapsible === true,
     items: items.length > 0 ? items : undefined
   }

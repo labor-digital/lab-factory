@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import BasePageCta from './BasePageCta.vue'
+import Button from './Button.vue'
 
 defineProps<{
   content: any
@@ -71,16 +72,10 @@ function descriptionClasses(variant: string) {
                   uiProps.orientation === 'vertical' ? 'justify-center' : ''
                 ]"
               >
-                <UButton
+                <Button
                   v-for="(link, i) in uiProps.links"
                   :key="i"
-                  :label="link.label"
-                  :to="link.to"
-                  :color="link.color"
-                  :variant="link.variant"
-                  :size="link.size"
-                  :icon="link.icon"
-                  :trailing="link.trailing"
+                  v-bind="link"
                 />
               </div>
             </slot>

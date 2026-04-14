@@ -11,10 +11,10 @@ const parsedData = computed(() => {
   return {
     label: data.label || undefined,
     icon: data.icon || undefined,
-    color: data.color || undefined,
-    size: data.size || 'sm',
-    type: data.type || 'solid',
-    orientation: data.orientation || 'horizontal'
+    color: unwrapSelect(data.color),
+    size: unwrapSelect(data.size, 'sm'),
+    type: unwrapSelect(data.type, 'solid'),
+    orientation: unwrapSelect(data.orientation, 'horizontal')
   }
 })
 </script>

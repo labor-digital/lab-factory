@@ -14,9 +14,9 @@ const parsedData = computed(() => {
       label: btnData.label,
       to: btnData.to?.url || btnData.to || undefined,
       target: btnData.target || undefined,
-      color: btnData.color || 'primary',
-      variant: btnData.variant || 'solid',
-      size: btnData.size || 'md',
+      color: unwrapSelect(btnData.color, 'primary'),
+      variant: unwrapSelect(btnData.variant, 'solid'),
+      size: unwrapSelect(btnData.size, 'md'),
       icon: btnData.icon || undefined,
       leading: btnData.leading === '1' || btnData.leading === true,
       trailing: btnData.trailing === '1' || btnData.trailing === true,
@@ -25,7 +25,7 @@ const parsedData = computed(() => {
   })
 
   return {
-    alignment: data.alignment || 'left',
+    alignment: unwrapSelect(data.alignment, 'left'),
     buttons
   }
 })

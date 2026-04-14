@@ -27,17 +27,17 @@ const parsedData = computed(() => {
       icon: cardData.icon,
       title: cardData.title,
       description: cardData.description,
-      orientation: cardData.orientation || 'vertical',
+      orientation: unwrapSelect(cardData.orientation, 'vertical'),
       reverse: cardData.reverse === '1' || cardData.reverse === true,
-      variant: cardData.variant || 'outline',
+      variant: unwrapSelect(cardData.variant, 'outline'),
       highlight: cardData.highlight === '1' || cardData.highlight === true,
-      highlightColor: cardData.highlight_color || undefined,
+      highlightColor: unwrapSelect(cardData.highlight_color),
       spotlight: cardData.spotlight === '1' || cardData.spotlight === true,
-      spotlightColor: cardData.spotlight_color || undefined,
+      spotlightColor: unwrapSelect(cardData.spotlight_color),
       to: cardData.to?.url || cardData.to || undefined,
       target: cardData.target || undefined,
       image,
-      colSpan: cardData.col_span || '1'
+      colSpan: unwrapSelect(cardData.col_span, '1')
     }
   })
 

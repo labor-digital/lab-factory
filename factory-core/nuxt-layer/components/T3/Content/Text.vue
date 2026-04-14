@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import BaseText from './BaseText.vue'
+import ContentContainer from './ContentContainer.vue'
 
 defineProps<{
   content: any
@@ -8,6 +9,8 @@ defineProps<{
 
 <template>
   <BaseText :content="content" v-slot="{ uiProps }">
-    <div class="prose dark:prose-invert max-w-none" v-html="uiProps.bodytext" />
+    <ContentContainer>
+      <div class="prose dark:prose-invert max-w-none" v-html="uiProps.bodytext" />
+    </ContentContainer>
   </BaseText>
 </template>

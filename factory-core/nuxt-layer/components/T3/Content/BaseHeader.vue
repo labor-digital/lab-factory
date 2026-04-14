@@ -10,12 +10,12 @@ const parsedData = computed(() => {
 
   return {
     text: data.text || '',
-    level: data.level || 'h2',
-    alignment: data.alignment || 'left',
-    separator: data.separator === '1' || data.separator === true,
-    separatorColor: data.separator_color || undefined,
-    separatorType: data.separator_type || 'solid',
-    separatorSize: data.separator_size || 'sm'
+    level: unwrapSelect(data.level, 'h2'),
+    alignment: unwrapSelect(data.alignment, 'left'),
+    separator: data.separator === '1' || data.separator === 1 || data.separator === true,
+    separatorColor: unwrapSelect(data.separator_color),
+    separatorType: unwrapSelect(data.separator_type, 'solid'),
+    separatorSize: unwrapSelect(data.separator_size, 'sm')
   }
 })
 </script>

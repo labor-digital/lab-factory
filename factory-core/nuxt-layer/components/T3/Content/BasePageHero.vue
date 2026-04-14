@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { parseButtons, parseFile, asBool } from '../../../utils/parseContent'
 
 const props = defineProps<{
   content: any
@@ -7,41 +8,50 @@ const props = defineProps<{
 
 const parsedData = computed(() => {
   const data = props.content?.content || {}
-  
-  // Parse links
-  const links = (data.links || []).map((link: any) => {
-    const linkData = link.content || link
+
+  const slides = (data.slides || []).map((slide: any) => {
+    const s = slide.content || slide
+    const backgroundType = unwrapSelect(s.background_type, 'color')
+
     return {
-      label: linkData.label,
-      to: linkData.to?.url || linkData.to,
-      color: linkData.color || 'primary',
-      variant: linkData.variant || 'solid',
-      size: linkData.size || 'md',
-      icon: linkData.icon,
-      trailing: linkData.trailing === '1' || linkData.trailing === true
+      eyebrow: s.eyebrow || undefined,
+      headline: s.headline || undefined,
+      text: s.text || undefined,
+      textColor: unwrapSelect(s.text_color, 'auto'),
+      overlay: unwrapSelect(s.overlay, 'none'),
+      background: {
+        type: backgroundType,
+        color: unwrapSelect(s.background_color, 'primary'),
+        image: parseFile(s.background_image),
+        video: parseFile(s.background_video),
+        videoUrl: s.background_video_url || undefined
+      },
+      buttons: parseButtons(s.buttons)
     }
   })
 
-  // Parse image
-  let image = null
-  if (data.image && data.image.length > 0) {
-    const imgData = data.image[0]
-    image = {
-      src: imgData.publicUrl || imgData.url,
-      alt: imgData.properties?.alternative || imgData.title || '',
-      width: imgData.properties?.width,
-      height: imgData.properties?.height
-    }
+  // Ensure at least one slide renders even if seed data hasn't run yet.
+  if (slides.length === 0) {
+    slides.push({
+      eyebrow: undefined,
+      headline: data.title || 'Hero',
+      text: data.description || undefined,
+      textColor: 'auto',
+      overlay: 'none',
+      background: { type: 'color', color: 'primary', image: null, video: null, videoUrl: undefined },
+      buttons: []
+    })
   }
 
   return {
-    headline: data.headline,
-    title: data.title,
-    description: data.description,
-    links: links.length > 0 ? links : undefined,
-    orientation: data.orientation || 'vertical',
-    reverse: data.reverse === '1' || data.reverse === true,
-    image
+    contentPositionX: unwrapSelect(data.content_position_x, 'center'),
+    contentPositionY: unwrapSelect(data.content_position_y, 'center'),
+    height: unwrapSelect(data.height, 'medium'),
+    showArrows: asBool(data.show_arrows),
+    showPagination: asBool(data.show_pagination),
+    autoplay: asBool(data.autoplay),
+    loop: asBool(data.loop),
+    slides
   }
 })
 </script>

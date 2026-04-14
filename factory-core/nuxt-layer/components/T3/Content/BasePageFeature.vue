@@ -12,7 +12,7 @@ const parsedData = computed(() => {
     icon: data.icon,
     title: data.title,
     description: data.description,
-    orientation: data.orientation || 'horizontal',
+    orientation: unwrapSelect(data.orientation, 'horizontal'),
     to: data.to?.url || data.to || undefined,
     target: data.target || undefined
   }
