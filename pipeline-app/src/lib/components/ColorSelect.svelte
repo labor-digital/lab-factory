@@ -33,22 +33,62 @@
 		neutral: '#737373',
 		stone: '#78716c'
 	};
+
+	let isCustom = $derived(!options.includes(value) && value !== '');
+
+	function swatchColor(v: string): string {
+		return COLOR_SWATCHES[v] ?? v;
+	}
 </script>
 
-<div class="relative">
-	<select
-		{id}
-		{disabled}
-		class="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 pl-8 text-sm text-zinc-200 focus:outline-none focus:border-cyan-500 disabled:opacity-50 appearance-none cursor-pointer"
-		onchange={(e) => onchange(e.currentTarget.value)}
-	>
-		{#each options as option}
-			<option value={option} selected={option === value}>{option}</option>
-		{/each}
-	</select>
-	<span
-		class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border border-zinc-600"
-		style="background-color: {COLOR_SWATCHES[value] ?? '#737373'}"
-	></span>
-	<span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-xs pointer-events-none">▾</span>
+<div class="relative flex items-center gap-2">
+	<div class="relative flex-1">
+		<select
+			{id}
+			{disabled}
+			class="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 pl-8 text-sm text-zinc-200 focus:outline-none focus:border-cyan-500 disabled:opacity-50 appearance-none cursor-pointer"
+			value={isCustom ? '__custom__' : value}
+			onchange={(e) => {
+				const v = e.currentTarget.value;
+				if (v === '__custom__') {
+					onchange(value.startsWith('#') ? value : '#3b82f6');
+				} else {
+					onchange(v);
+				}
+			}}
+		>
+			{#each options as option}
+				<option value={option} selected={option === value}>{option}</option>
+			{/each}
+			<option value="__custom__" selected={isCustom}>Custom…</option>
+		</select>
+		<span
+			class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border border-zinc-600"
+			style="background-color: {swatchColor(value)}"
+		></span>
+		<span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-xs pointer-events-none">▾</span>
+	</div>
+
+	{#if isCustom}
+		<div class="flex items-center gap-1.5">
+			<input
+				type="color"
+				value={value}
+				{disabled}
+				class="w-8 h-8 rounded border border-zinc-700 bg-zinc-900 cursor-pointer disabled:opacity-50 p-0.5"
+				oninput={(e) => onchange(e.currentTarget.value)}
+			/>
+			<input
+				type="text"
+				value={value}
+				{disabled}
+				placeholder="#000000"
+				class="w-20 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 font-mono focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+				oninput={(e) => {
+					const v = e.currentTarget.value;
+					if (/^#[0-9a-fA-F]{0,6}$/.test(v)) onchange(v);
+				}}
+			/>
+		</div>
+	{/if}
 </div>

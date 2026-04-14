@@ -22,7 +22,8 @@ export const DEFAULT_SETTINGS: FactorySettings = {
 		xl: '1280px',
 		'2xl': '1536px'
 	},
-	colorMode: 'system'
+	colorMode: 'system',
+	placeholderImageBaseUrl: 'https://picsum.photos'
 };
 
 export const DEFAULT_CONFIG: PipelineConfig = {
@@ -30,6 +31,9 @@ export const DEFAULT_CONFIG: PipelineConfig = {
 	factoryCorePath: './factory-core',
 	testProjectName: 'test-client-auto',
 	componentsToTest: ['PageHero', 'Text'],
+	activeRecordTypes: [],
+	homeElements: ['PageHero', 'Header', 'Text'],
+	seedTemplate: '',
 	typo3AdminUser: 'labor',
 	typo3AdminPassword: 'Password1!',
 	appEncryptionKey: 'test-encryption-key-0123456789abcdef0123456789abcdef',

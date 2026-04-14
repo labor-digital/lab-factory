@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { ArrowLeft } from 'lucide-svelte';
-	import type { PipelineConfig, StepEvent, Manifest, PhaseId, StepStatus, PhaseInfo } from '$lib/pipeline/types.js';
+	import type { PipelineConfig, StepEvent, Manifest, SeedTemplate, PhaseId, StepStatus, PhaseInfo } from '$lib/pipeline/types.js';
 	import { PHASES } from '$lib/pipeline/types.js';
 	import { DEFAULT_CONFIG } from '$lib/pipeline/config.js';
 	import { toastSuccess, toastError, toastInfo } from '$lib/toast.js';
@@ -25,6 +25,7 @@
 	// --- State ---
 	let config = $state<PipelineConfig>({ ...DEFAULT_CONFIG });
 	let manifest = $state<Manifest | null>(null);
+	let templates = $state<SeedTemplate[]>([]);
 	let running = $state(false);
 	let pipelineStatus = $state<'idle' | 'running' | 'done' | 'error'>('idle');
 	let errorMessage = $state('');
@@ -236,6 +237,13 @@
 		} catch {
 			// ignore
 		}
+
+		try {
+			const res = await fetch('/api/templates');
+			if (res.ok) templates = await res.json();
+		} catch {
+			// ignore
+		}
 	});
 
 	// --- Derived ---
@@ -262,7 +270,7 @@
 				<Banner />
 
 				<div class="mb-6">
-					<ConfigForm {config} {manifest} disabled={false} onchange={(c) => (config = c)} />
+					<ConfigForm {config} {manifest} {templates} disabled={false} onchange={(c) => (config = c)} />
 				</div>
 
 				<div class="flex items-center justify-end gap-3">

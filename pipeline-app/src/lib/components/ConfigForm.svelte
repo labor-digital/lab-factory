@@ -1,19 +1,25 @@
 <script lang="ts">
 	import { RefreshCw } from 'lucide-svelte';
-	import type { PipelineConfig, Manifest } from '$lib/pipeline/types.js';
+	import type { PipelineConfig, Manifest, SeedTemplate } from '$lib/pipeline/types.js';
 	import ComponentPicker from './ComponentPicker.svelte';
 	import PasswordInput from './PasswordInput.svelte';
 	import SettingsCard from './SettingsCard.svelte';
+	import HomeEditor from './HomeEditor.svelte';
+	import ExtendedConfigCard from './ExtendedConfigCard.svelte';
+	import TemplatePicker from './TemplatePicker.svelte';
 
 	interface Props {
 		config: PipelineConfig;
 		manifest: Manifest | null;
+		templates: SeedTemplate[];
 		disabled: boolean;
 		collapsed?: boolean;
 		onchange: (config: PipelineConfig) => void;
 	}
 
-	let { config, manifest, disabled, collapsed: collapsedProp = false, onchange }: Props = $props();
+	let { config, manifest, templates, disabled, collapsed: collapsedProp = false, onchange }: Props = $props();
+
+	let hasTemplate = $derived(config.seedTemplate !== '');
 	let showSecrets = $state(false);
 	let collapsed = $state(false);
 
@@ -95,9 +101,49 @@
 			</div>
 
 			<ComponentPicker
-				selected={config.componentsToTest}
+				selectedComponents={config.componentsToTest}
+				selectedRecordTypes={config.activeRecordTypes}
 				{manifest}
-				onchange={(v) => update('componentsToTest', v)}
+				onchange={(sel) => onchange({ ...config, componentsToTest: sel.components, activeRecordTypes: sel.recordTypes })}
+			/>
+
+			<TemplatePicker
+				selected={config.seedTemplate}
+				{templates}
+				{disabled}
+				onchange={(slug) => {
+					const tpl = templates.find((t) => t.slug === slug);
+					if (tpl) {
+						// Auto-activate components required by the template
+						const merged = [...config.componentsToTest];
+						for (const comp of tpl.components) {
+							if (!merged.includes(comp)) merged.push(comp);
+						}
+						// Auto-activate record types required by the template
+						const mergedRecordTypes = [...config.activeRecordTypes];
+						for (const rt of tpl.recordTypes ?? []) {
+							if (!mergedRecordTypes.includes(rt)) mergedRecordTypes.push(rt);
+						}
+						// Merge template settings (colors, fonts, etc.) if provided
+						const settings = tpl.settings
+							? {
+								...config.settings,
+								...tpl.settings,
+								colors: { ...config.settings.colors, ...(tpl.settings.colors ?? {}) },
+								fonts: { ...config.settings.fonts, ...(tpl.settings.fonts ?? {}) }
+							}
+							: config.settings;
+						onchange({
+							...config,
+							seedTemplate: slug,
+							componentsToTest: merged,
+							activeRecordTypes: mergedRecordTypes,
+							settings
+						});
+					} else {
+						update('seedTemplate', slug);
+					}
+				}}
 			/>
 
 			<div>
@@ -227,7 +273,32 @@
 </div>
 
 <div class="mt-4">
+	<HomeEditor
+		elements={config.homeElements}
+		{manifest}
+		disabled={disabled || hasTemplate}
+		onchange={(els) => update('homeElements', els)}
+		onautoactivate={(comp) => {
+			if (!config.componentsToTest.includes(comp)) {
+				update('componentsToTest', [...config.componentsToTest, comp]);
+			}
+		}}
+	/>
+	{#if hasTemplate}
+		<p class="text-[10px] text-zinc-500 mt-1 px-1">Disabled — homepage content is defined by the selected seed template.</p>
+	{/if}
+</div>
+
+<div class="mt-4">
 	<SettingsCard
+		settings={config.settings}
+		{disabled}
+		onchange={(s) => update('settings', s)}
+	/>
+</div>
+
+<div class="mt-4">
+	<ExtendedConfigCard
 		settings={config.settings}
 		{disabled}
 		onchange={(s) => update('settings', s)}

@@ -10,6 +10,36 @@ function toKebab(pascal: string): string {
 	return pascal.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
+function toPascal(kebab: string): string {
+	return kebab.replace(/(^|-)([a-z])/g, (_, __, c) => c.toUpperCase());
+}
+
+async function getTemplateComponents(factoryCorePath: string, templateSlug: string): Promise<string[]> {
+	try {
+		const tplPath = resolve(factoryCorePath, 'typo3-extension', 'SeedTemplates', templateSlug + '.json');
+		const content = await readFile(tplPath, 'utf-8');
+		const parsed = JSON.parse(content);
+		const slugs: string[] = (parsed.elements || []).map((e: { component?: string }) => e.component).filter(Boolean);
+		// Deduplicate and convert to PascalCase
+		return [...new Set(slugs)].map(toPascal);
+	} catch {
+		return [];
+	}
+}
+
+async function getTemplateRecordTypes(factoryCorePath: string, templateSlug: string): Promise<string[]> {
+	try {
+		const tplPath = resolve(factoryCorePath, 'typo3-extension', 'SeedTemplates', templateSlug + '.json');
+		const content = await readFile(tplPath, 'utf-8');
+		const parsed = JSON.parse(content);
+		return Array.isArray(parsed.record_types)
+			? parsed.record_types.filter((r: unknown): r is string => typeof r === 'string')
+			: [];
+	} catch {
+		return [];
+	}
+}
+
 function parseLabCliBin(bin: string): { cmd: string; args: string[] } {
 	const parts = bin.split(/\s+/);
 	return { cmd: parts[0], args: parts.slice(1) };
@@ -85,6 +115,32 @@ async function forceSymlink(target: string, link: string): Promise<void> {
 		// link doesn't exist, that's fine
 	}
 	await symlink(target, link);
+}
+
+async function assertContainerRunning(service: string, cwd: string): Promise<void> {
+	return new Promise((resolve_, reject) => {
+		const child = spawn('docker', ['compose', 'ps', '--format', '{{.State}}', service], { cwd });
+		let out = '';
+		child.stdout.on('data', (d: Buffer) => { out += d.toString(); });
+		child.on('close', (code: number | null) => {
+			const state = out.trim().toLowerCase();
+			if (code !== 0 || !state || state === 'exited' || state === 'dead' || state === 'restarting') {
+				// Grab recent logs for the error message
+				const logChild = spawn('docker', ['compose', 'logs', '--tail', '30', service], { cwd });
+				let logs = '';
+				logChild.stdout.on('data', (d: Buffer) => { logs += d.toString(); });
+				logChild.stderr.on('data', (d: Buffer) => { logs += d.toString(); });
+				logChild.on('close', () => {
+					const snippet = logs.trim().split('\n').slice(-15).join('\n');
+					reject(new Error(
+						`Container "${service}" is not running (state: ${state || 'unknown'}).\nRecent logs:\n${snippet}`
+					));
+				});
+			} else {
+				resolve_();
+			}
+		});
+	});
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -314,6 +370,20 @@ async function componentPhase(
 		});
 	}
 
+	// Write active_record_types directly into factory.json (no CLI equivalent yet).
+	if (config.activeRecordTypes.length > 0) {
+		const recordStepId = 'inject-record-types';
+		emit({ type: 'step:start', stepId: recordStepId, data: `Writing active_record_types: ${config.activeRecordTypes.join(', ')}`, timestamp: Date.now() });
+		for (const subdir of ['backend/app/src', 'frontend/app/src']) {
+			const factoryJsonPath = resolve(projectDir, subdir, 'factory.json');
+			const raw = await readFile(factoryJsonPath, 'utf-8');
+			const json = JSON.parse(raw);
+			json.active_record_types = config.activeRecordTypes;
+			await writeFile(factoryJsonPath, JSON.stringify(json, null, '\t') + '\n');
+		}
+		emit({ type: 'step:pass', stepId: recordStepId, data: 'active_record_types written', timestamp: Date.now() });
+	}
+
 	// Verify components in factory.json
 	emit({
 		type: 'step:output',
@@ -377,6 +447,7 @@ async function dockerPhase(
 		waited++;
 		if (waited % 10 === 0) {
 			emit({ type: 'step:output', stepId: waitStepId, data: `Still waiting... (${waited}s)`, timestamp: Date.now() });
+			await assertContainerRunning('app', backendApp);
 		}
 	}
 	if (waited >= maxWait) {
@@ -399,6 +470,36 @@ async function dockerPhase(
 	const mysqlDb = await getEnv('APP_MYSQL_DATABASE');
 	const mysqlUser = await getEnv('APP_MYSQL_USER');
 	const mysqlPass = await getEnv('APP_MYSQL_PASS');
+
+	// Wait for MySQL to accept connections
+	const mysqlWaitId = 'docker-mysql-wait';
+	emit({ type: 'step:start', stepId: mysqlWaitId, data: 'Waiting for MySQL to be ready...', timestamp: Date.now() });
+	let mysqlWaited = 0;
+	const mysqlMaxWait = 60;
+	while (mysqlWaited < mysqlMaxWait) {
+		if (signal.aborted) throw new Error('Aborted');
+		try {
+			const result = spawn('docker', [
+				'compose', 'exec', 'mysql',
+				'mysqladmin', 'ping', '-u', mysqlUser, `-p${mysqlPass}`
+			], { cwd: backendApp });
+			const code = await new Promise<number | null>((res) => result.on('close', res));
+			if (code === 0) break;
+		} catch {
+			// keep waiting
+		}
+		await new Promise((res) => setTimeout(res, 1000));
+		mysqlWaited++;
+		if (mysqlWaited % 5 === 0) {
+			emit({ type: 'step:output', stepId: mysqlWaitId, data: `Still waiting... (${mysqlWaited}s)`, timestamp: Date.now() });
+			await assertContainerRunning('mysql', backendApp);
+		}
+	}
+	if (mysqlWaited >= mysqlMaxWait) {
+		emit({ type: 'step:fail', stepId: mysqlWaitId, data: `MySQL not ready after ${mysqlMaxWait}s`, timestamp: Date.now() });
+		throw new Error('Timed out waiting for MySQL');
+	}
+	emit({ type: 'step:pass', stepId: mysqlWaitId, data: `MySQL ready after ${mysqlWaited}s`, timestamp: Date.now() });
 
 	await runCommand(
 		'docker',
@@ -434,9 +535,23 @@ async function dockerPhase(
 	);
 
 	// Base seeder
+	const seedInitArgs = [
+		'compose', 'exec', '-w', '/var/www/html', 'app',
+		'vendor/bin/typo3', 'factory:seed:init',
+		'--lang', config.languages.join(',')
+	];
+
+	if (config.seedTemplate) {
+		seedInitArgs.push('--seed-template', config.seedTemplate);
+	} else {
+		// Reverse order because TYPO3 sorts newest-first by default
+		const homeElementsSlugs = [...config.homeElements].reverse().map(toKebab);
+		seedInitArgs.push('--home-elements', homeElementsSlugs.join(','));
+	}
+
 	await runCommand(
 		'docker',
-		['compose', 'exec', '-w', '/var/www/html', 'app', 'vendor/bin/typo3', 'factory:seed:init', '--lang', config.languages.join(',')],
+		seedInitArgs,
 		backendApp,
 		emit,
 		'docker-seed-init',
@@ -456,6 +571,29 @@ async function dockerPhase(
 		);
 	}
 
+	// Final cache flush after all seeders
+	await runCommand(
+		'docker',
+		['compose', 'exec', '-w', '/var/www/html', 'app', 'vendor/bin/typo3', 'cache:flush'],
+		backendApp,
+		emit,
+		'docker-typo3-cache-final',
+		signal
+	);
+
+	// Fix permissions on var/ directory — TYPO3 CLI commands run as root inside the
+	// container, leaving cache dirs (e.g. var/cache/code/di/) owned by root and
+	// unwritable by the web server.
+	await runCommand(
+		'docker',
+		['compose', 'exec', '-w', '/var/www/html', 'app', 'bash', '-c',
+			'source /root/.bashrc && ensure_perms /var/www/html/var'],
+		backendApp,
+		emit,
+		'docker-fix-permissions',
+		signal
+	);
+
 	emit({ type: 'phase:end', phase: 3, data: 'Docker bootstrapped and seeded', timestamp: Date.now() });
 }
 
@@ -469,6 +607,24 @@ export async function runPipeline(
 ): Promise<void> {
 	const projectRoot = resolve(dirname(new URL(import.meta.url).pathname), '..', '..', '..', '..');
 	const projectDir = resolve(projectRoot, config.testProjectName);
+
+	// When a seed template is selected, ensure all its components AND record
+	// types are in the config (in case the user changed selection manually).
+	if (config.seedTemplate) {
+		const factoryCoreAbs = resolve(projectRoot, config.factoryCorePath);
+		const tplComponents = await getTemplateComponents(factoryCoreAbs, config.seedTemplate);
+		for (const comp of tplComponents) {
+			if (!config.componentsToTest.includes(comp)) {
+				config.componentsToTest.push(comp);
+			}
+		}
+		const tplRecordTypes = await getTemplateRecordTypes(factoryCoreAbs, config.seedTemplate);
+		for (const rt of tplRecordTypes) {
+			if (!config.activeRecordTypes.includes(rt)) {
+				config.activeRecordTypes.push(rt);
+			}
+		}
+	}
 
 	try {
 		await teardownPhase(config, projectRoot, projectDir, emit, signal);
