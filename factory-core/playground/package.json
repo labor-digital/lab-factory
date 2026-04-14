@@ -1,0 +1,24 @@
+{
+  "name": "@labor-digital/factory-playground",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "prepare": "nuxt prepare"
+  },
+  "dependencies": {
+    "@iconify/vue": "^5.0.0",
+    "@labor-digital/factory-nuxt-layer": "file:../nuxt-layer",
+    "@nuxt/image": "^1.10.0",
+    "@nuxt/ui": "^4.6.1",
+    "@splidejs/vue-splide": "^0.6.12",
+    "@t3headless/nuxt-typo3": "^2.3.1",
+    "nuxt": "^4.0.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
