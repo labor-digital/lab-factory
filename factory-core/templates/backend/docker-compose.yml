@@ -43,11 +43,11 @@ services:
   mysql:
     restart: "no"
     container_name: '${COMPOSE_PROJECT_NAME}-mysql'
-    image: mariadb:12.0
+    image: mysql:8.4
     env_file:
       - .env
     environment:
-      - 'MARIADB_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}'
+      - 'MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}'
     ports:
       - "${APP_IP}:3306:3306"
     volumes:
@@ -74,6 +74,8 @@ services:
       - '${APP_IMPORT_DIR}:/var/www/html_import'
     volumes_from:
       - data
+volumes:
+  mysql_data:
 networks:
   shared:
     name: ${COMPOSE_PROJECT_NAME}-shared
