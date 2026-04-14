@@ -1,6 +1,7 @@
 {
 	"core_version": "1.0.0",
 	"active_components": [],
+	"active_record_types": [],
 	"settings": {
 		"colors": {
 			"primary": "blue",
