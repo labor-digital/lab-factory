@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/labor-digital/lab-factory/compare/factory-nuxt-layer-v0.1.1...factory-nuxt-layer-v0.1.2) (2026-04-30)
+
+
+### Bug Fixes
+
+* correct nuxt-layer install snippet to match actual typo3 module config ([e804f8d](https://github.com/labor-digital/lab-factory/commit/e804f8d7ea53a7b91946e14466faa5da74809472))
+
 ## [0.1.1](https://github.com/labor-digital/lab-factory/compare/factory-nuxt-layer-v0.1.0...factory-nuxt-layer-v0.1.1) (2026-04-30)
 
 
