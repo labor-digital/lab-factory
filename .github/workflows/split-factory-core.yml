@@ -6,6 +6,7 @@ on:
       - master
     tags:
       - 'factory-core-v*'
+  workflow_dispatch:
 
 jobs:
   split-branch:
