@@ -38,9 +38,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Compute Packagist-friendly tag
+        id: tag
+        run: echo "name=${GITHUB_REF_NAME#factory-core-}" >> "$GITHUB_OUTPUT"
+
       - uses: danharrin/monorepo-split-github-action@v2.3.0
         with:
-          tag: ${{ github.ref_name }}
+          tag: ${{ steps.tag.outputs.name }}
           package_directory: 'factory-core/typo3-extension'
           repository_organization: 'labor-digital'
           repository_name: 'factory-core'
