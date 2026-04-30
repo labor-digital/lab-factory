@@ -11,13 +11,15 @@
       "release-type": "node",
       "package-name": "@labor-digital/factory-nuxt-layer",
       "component": "factory-nuxt-layer",
-      "changelog-path": "CHANGELOG.md"
+      "changelog-path": "CHANGELOG.md",
+      "release-as": "0.1.0"
     },
     "factory-core/typo3-extension": {
       "release-type": "simple",
       "package-name": "labor-digital/factory-core",
       "component": "factory-core",
       "changelog-path": "CHANGELOG.md",
+      "release-as": "0.1.0",
       "extra-files": [
         {
           "type": "json",
