@@ -433,14 +433,22 @@ Replaced the stub at the previous executor `factoryCoreSource === 'npm'` branch 
 
 Symlink creation only runs in `local` mode; `npm` mode produces a scaffold that resolves dependencies entirely from the public registries. `composer install` / `npm install` are still operator-run (Phase 3 Docker bring-up), unchanged.
 
-### Pre-1.0.0 release checklist
+### Pre-0.1.0 release checklist
 
 These remain to be done manually before the first publish actually succeeds:
 
-1. **Packagist registration** — sign in to packagist.org as `labor-digital` → "Submit Package" → URL `https://github.com/labor-digital/lab-factory`. Then install the GitHub auto-sync webhook Packagist provides (Settings → Webhooks on the GitHub repo).
-2. **NPM_TOKEN** — generate an automation token with publish rights on the `@labor-digital` scope, add as repo secret `NPM_TOKEN` (Settings → Secrets → Actions).
+1. **Packagist subtree split** — Packagist requires `composer.json` at the repo root, but our monorepo has it at `factory-core/typo3-extension/composer.json`. To bridge: a dedicated mirror repo whose root *is* the extension, kept in sync by [.github/workflows/split-factory-core.yml](../.github/workflows/split-factory-core.yml) using `danharrin/monorepo-split-github-action`. Operator steps:
+   - Create empty repo at `https://github.com/labor-digital/factory-core` (no init, no README, no license — the split push provides everything).
+   - Generate a fine-grained PAT scoped to that mirror repo with `Contents: read and write` permission. (Classic PAT with `repo` scope also works.)
+   - Add the PAT as repo secret `SUBTREE_SPLIT_TOKEN` on `lab-factory`.
+   - First push to `master` after the workflow lands seeds the mirror's master branch automatically.
+   - Submit the **mirror** URL `https://github.com/labor-digital/factory-core` to Packagist (NOT the monorepo URL).
+   - Install the Packagist GitHub webhook on the **mirror** repo (Settings → Webhooks).
+2. **NPM_TOKEN** — already configured. Automation token with publish rights on the `@labor-digital` scope, set as repo secret `NPM_TOKEN`. Used by `release-nuxt-layer.yml`.
 3. **GitHub Actions write permissions** — confirm "Read and write permissions" is enabled for `GITHUB_TOKEN` so release-please can open PRs (Settings → Actions → General → Workflow permissions).
-4. **Cut the release** — push a `feat: initial 0.1.0 beta release of factory-core` commit to `main`. release-please opens the combined Release PR (`separate-pull-requests: false`); merge it. The two tags (`factory-nuxt-layer-v0.1.0`, `factory-core-v0.1.0`) trigger npm publish + Packagist sync.
+4. **Cut the release** — push a `feat: initial 0.1.0 beta release of factory-core` commit to `main`. release-please opens the combined Release PR (`separate-pull-requests: false`); merge it. The two tags (`factory-nuxt-layer-v0.1.0`, `factory-core-v0.1.0`) trigger:
+   - npm publish via `release-nuxt-layer.yml` (direct from monorepo subpath — no split needed for npm).
+   - Mirror tag push via `split-factory-core.yml` → Packagist webhook on the mirror picks it up → composer install resolves.
 
 ### Verification
 
