@@ -1,0 +1,108 @@
+LABOR.digital Factory — Source Available License
+Copyright (c) 2026 LABOR.digital - Agentur für moderne Kommunikation GmbH.
+All rights reserved.
+
+
+1. Purpose and scope
+
+This repository contains the source code of the LABOR.digital Factory build
+system (the "Software"). The Software is published so that prospective
+clients, partners, auditors, and the general public may read, evaluate, and
+security-review it. No other permission is granted by this license.
+
+
+2. Carve-outs for separately licensed code
+
+Certain subdirectories of this repository are licensed separately and are
+NOT covered by this license. See LICENSES.md for the current map. Where a
+subdirectory contains its own LICENSE file, that LICENSE controls the
+contents of that subdirectory.
+
+
+3. Permitted uses
+
+You may:
+
+  (a) view, read, and discuss the Software;
+  (b) download the Software for the sole purpose of security evaluation
+      or auditing; and
+  (c) quote short excerpts for commentary, education, or journalism
+      consistent with fair use / fair dealing principles.
+
+
+4. Prohibited uses
+
+Except as expressly permitted by a separate written agreement with
+LABOR.digital, you may NOT:
+
+  (a) use, execute, or deploy the Software, in whole or in part, in any
+      production, staging, development, or commercial environment;
+  (b) copy, modify, merge, publish, redistribute, sublicense, or sell the
+      Software or any substantial portion of it;
+  (c) create derivative works based on the Software;
+  (d) remove, alter, or obscure any copyright, trademark, or license
+      notices present in the Software.
+
+
+5. Contributions
+
+Any contribution you submit to this repository (for example, via pull
+request, issue, or patch) is offered to LABOR.digital under the terms of
+this license. By submitting a contribution, you grant LABOR.digital a
+perpetual, worldwide, non-exclusive, royalty-free, irrevocable license to
+use, modify, sublicense, and distribute that contribution under any
+license, with or without attribution.
+
+
+6. Trademarks
+
+This license does not grant any rights to use the names, logos,
+trademarks, or trade dress of LABOR.digital, including without limitation
+"LABOR.digital" and "Factory". All trademark and brand rights are
+expressly reserved. See the trademark notice in README.md for details on
+permitted nominative use.
+
+
+7. Commercial licensing
+
+If you wish to use the Software beyond the permitted uses in Section 3,
+please contact LABOR.digital to obtain a commercial license.
+
+Contact: info@labor.digital
+Address: Fischtorplatz 21 55116 Mainz
+
+
+8. No warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT.
+
+
+9. Limitation of liability
+
+TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL
+LABOR.digital OR ITS CONTRIBUTORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE,
+ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+
+10. Termination
+
+Any use of the Software outside the permissions granted in Section 3
+automatically terminates your rights under this license. Upon termination
+you must cease all use and destroy any copies in your possession.
+
+
+11. Governing law
+
+This license is governed by the laws of the Federal Republic of Germany,
+excluding its conflict-of-law rules and the United Nations Convention on
+Contracts for the International Sale of Goods (CISG). The exclusive place
+of jurisdiction for any dispute arising out of this license is
+<TODO: venue, typically the seat of LABOR.digital>, Germany, to the extent
+permitted by law.
+
+
+— END OF LICENSE —

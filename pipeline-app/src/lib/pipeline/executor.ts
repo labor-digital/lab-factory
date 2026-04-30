@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { rm, symlink, unlink, appendFile, stat, readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import type { PipelineConfig, StepEvent, PhaseId } from './types.js';
+import type { PipelineConfig, StepEvent, PhaseId, TenantSpec } from './types.js';
 import { assertFileExists, assertJsonContains } from './assertions.js';
 
 type Emit = (event: StepEvent) => void;
@@ -287,12 +287,83 @@ async function scaffoldPhase(
 
 	if (!ok) throw new Error('Scaffolding assertions failed');
 
-	// Symlink factory-core
-	const stepId = 'scaffold-symlink';
-	emit({ type: 'step:start', stepId, data: 'Symlinking factory-core', timestamp: Date.now() });
-	await forceSymlink(factoryCoreAbs, resolve(projectDir, 'backend/app/factory-core'));
-	await forceSymlink(factoryCoreAbs, resolve(projectDir, 'frontend/app/factory-core'));
-	emit({ type: 'step:pass', stepId, data: 'factory-core symlinked to backend + frontend', timestamp: Date.now() });
+	// Wire factory-core source: local path symlinks (internal dev) or
+	// published packages (real clients).
+	if (config.factoryCoreSource === 'npm') {
+		const stepId = 'scaffold-npm-source';
+		emit({
+			type: 'step:start',
+			stepId,
+			data: 'factoryCoreSource=npm — wiring published packages',
+			timestamp: Date.now()
+		});
+
+		const nuxtConfigPath = resolve(projectDir, 'frontend/app/src/nuxt.config.ts');
+		const nuxtConfigRaw = await readFile(nuxtConfigPath, 'utf-8');
+		const nuxtConfigPatched = nuxtConfigRaw.replace(
+			"'../modules/nuxt-layer'",
+			"'@labor-digital/factory-nuxt-layer'"
+		);
+		if (nuxtConfigPatched === nuxtConfigRaw) {
+			throw new Error(
+				"npm-source patch: could not find '../modules/nuxt-layer' literal in scaffolded nuxt.config.ts"
+			);
+		}
+		await writeFile(nuxtConfigPath, nuxtConfigPatched);
+		emit({
+			type: 'step:output',
+			stepId,
+			data: 'Patched nuxt.config.ts extends → @labor-digital/factory-nuxt-layer',
+			timestamp: Date.now()
+		});
+
+		const fePkgPath = resolve(projectDir, 'frontend/app/src/package.json');
+		const fePkg = JSON.parse(await readFile(fePkgPath, 'utf-8'));
+		fePkg.dependencies = {
+			...(fePkg.dependencies ?? {}),
+			'@labor-digital/factory-nuxt-layer': config.factoryCoreNpmConstraint
+		};
+		await writeFile(fePkgPath, JSON.stringify(fePkg, null, '\t') + '\n');
+		emit({
+			type: 'step:output',
+			stepId,
+			data: `Added @labor-digital/factory-nuxt-layer@${config.factoryCoreNpmConstraint} to frontend package.json`,
+			timestamp: Date.now()
+		});
+
+		const beComposerPath = resolve(projectDir, 'backend/app/src/composer.json');
+		const beComposer = JSON.parse(await readFile(beComposerPath, 'utf-8'));
+		if (Array.isArray(beComposer.repositories)) {
+			beComposer.repositories = beComposer.repositories.filter(
+				(r: { type?: string; url?: string }) =>
+					!(r.type === 'path' && typeof r.url === 'string' && r.url.includes('typo3-extension'))
+			);
+			if (beComposer.repositories.length === 0) {
+				delete beComposer.repositories;
+			}
+		}
+		beComposer.require['labor-digital/factory-core'] = config.factoryCoreComposerConstraint;
+		await writeFile(beComposerPath, JSON.stringify(beComposer, null, '\t') + '\n');
+		emit({
+			type: 'step:output',
+			stepId,
+			data: `Set labor-digital/factory-core:${config.factoryCoreComposerConstraint} in backend composer.json (path repo removed)`,
+			timestamp: Date.now()
+		});
+
+		emit({
+			type: 'step:pass',
+			stepId,
+			data: 'npm-source mode wired (composer + nuxt-layer set to published versions)',
+			timestamp: Date.now()
+		});
+	} else {
+		const stepId = 'scaffold-symlink';
+		emit({ type: 'step:start', stepId, data: 'Symlinking factory-core', timestamp: Date.now() });
+		await forceSymlink(factoryCoreAbs, resolve(projectDir, 'backend/app/factory-core'));
+		await forceSymlink(factoryCoreAbs, resolve(projectDir, 'frontend/app/factory-core'));
+		emit({ type: 'step:pass', stepId: 'scaffold-symlink', data: 'factory-core symlinked to backend + frontend', timestamp: Date.now() });
+	}
 
 	// Write settings to factory.json
 	const settingsStepId = 'scaffold-settings';
@@ -598,12 +669,489 @@ async function dockerPhase(
 }
 
 // ---------------------------------------------------------------------------
+// Phase 4: Publish to Bitbucket
+// ---------------------------------------------------------------------------
+const BITBUCKET_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/;
+
+function redactToken(text: string): string {
+	return text.replace(/x-token-auth:[^@]+@/g, 'x-token-auth:***@');
+}
+
+async function provisionFlyIoFrontend(
+	config: PipelineConfig,
+	repoDir: string,
+	workspace: string,
+	slug: string,
+	bitbucketToken: string,
+	flyApiToken: string,
+	emit: Emit,
+	signal: AbortSignal
+): Promise<void> {
+	const appName = slug; // Reuse the Bitbucket repo slug as the Fly app name.
+
+	// Step F1: flyctl apps create — idempotent-ish (fails if name taken).
+	const flyEnv = { ...process.env, FLY_API_TOKEN: flyApiToken };
+	const createId = 'fly-apps-create';
+	emit({ type: 'step:start', stepId: createId, data: `flyctl apps create ${appName} --org ${config.flyIoOrgSlug}`, timestamp: Date.now() });
+	await new Promise<void>((resolveFn, rejectFn) => {
+		if (signal.aborted) { rejectFn(new Error('Aborted')); return; }
+		const child = spawn('flyctl', ['apps', 'create', appName, '--org', config.flyIoOrgSlug], {
+			cwd: repoDir, env: flyEnv, stdio: ['ignore', 'pipe', 'pipe'], signal
+		});
+		let stderr = '';
+		child.stdout.on('data', (c: Buffer) => emit({ type: 'step:output', stepId: createId, data: c.toString(), timestamp: Date.now() }));
+		child.stderr.on('data', (c: Buffer) => { stderr += c.toString(); emit({ type: 'step:output', stepId: createId, data: c.toString(), timestamp: Date.now() }); });
+		child.on('error', rejectFn);
+		child.on('close', (code: number | null) => {
+			if (code === 0) { emit({ type: 'step:pass', stepId: createId, data: `App created: ${appName}`, timestamp: Date.now() }); resolveFn(); return; }
+			// Treat "name taken" as non-fatal so a re-run doesn't wedge.
+			if (/Name .* already/.test(stderr)) {
+				emit({ type: 'step:pass', stepId: createId, data: `App ${appName} already exists — continuing`, timestamp: Date.now() });
+				resolveFn(); return;
+			}
+			emit({ type: 'step:fail', stepId: createId, data: `flyctl apps create failed (exit ${code})`, timestamp: Date.now() });
+			rejectFn(new Error(`flyctl apps create failed: ${stderr.slice(0, 300)}`));
+		});
+	});
+
+	// Step F2: flyctl secrets set — populate runtime env.
+	const secretsId = 'fly-secrets-set';
+	emit({ type: 'step:start', stepId: secretsId, data: `flyctl secrets set TYPO3_API_BASE_URL=<redacted> --app ${appName}`, timestamp: Date.now() });
+	await new Promise<void>((resolveFn, rejectFn) => {
+		if (signal.aborted) { rejectFn(new Error('Aborted')); return; }
+		const child = spawn('flyctl', ['secrets', 'set', `TYPO3_API_BASE_URL=${config.typo3ApiBaseUrl}`, '--app', appName, '--stage'], {
+			cwd: repoDir, env: flyEnv, stdio: ['ignore', 'pipe', 'pipe'], signal
+		});
+		let stderr = '';
+		child.stderr.on('data', (c: Buffer) => { stderr += c.toString(); });
+		child.on('error', rejectFn);
+		child.on('close', (code: number | null) => {
+			if (code === 0) { emit({ type: 'step:pass', stepId: secretsId, data: 'Secrets staged (applied on next deploy)', timestamp: Date.now() }); resolveFn(); return; }
+			emit({ type: 'step:fail', stepId: secretsId, data: `flyctl secrets set failed (exit ${code}): ${stderr.slice(0, 200)}`, timestamp: Date.now() });
+			rejectFn(new Error(`flyctl secrets set failed: ${stderr.slice(0, 300)}`));
+		});
+	});
+
+	// Step F3: first deploy — bootstrap so the app has a running machine before
+	// Bitbucket Pipelines auto-deploys on subsequent pushes.
+	const deployId = 'fly-first-deploy';
+	emit({ type: 'step:start', stepId: deployId, data: `flyctl deploy --remote-only --app ${appName}`, timestamp: Date.now() });
+	await new Promise<void>((resolveFn, rejectFn) => {
+		if (signal.aborted) { rejectFn(new Error('Aborted')); return; }
+		const child = spawn('flyctl', ['deploy', '--remote-only', '--app', appName], {
+			cwd: repoDir, env: flyEnv, stdio: ['ignore', 'pipe', 'pipe'], signal
+		});
+		child.stdout.on('data', (c: Buffer) => emit({ type: 'step:output', stepId: deployId, data: c.toString(), timestamp: Date.now() }));
+		child.stderr.on('data', (c: Buffer) => emit({ type: 'step:output', stepId: deployId, data: c.toString(), timestamp: Date.now() }));
+		child.on('error', rejectFn);
+		child.on('close', (code: number | null) => {
+			if (code === 0) { emit({ type: 'step:pass', stepId: deployId, data: `Deployed: https://${appName}.fly.dev`, timestamp: Date.now() }); resolveFn(); return; }
+			emit({ type: 'step:fail', stepId: deployId, data: `flyctl deploy failed (exit ${code})`, timestamp: Date.now() });
+			rejectFn(new Error(`flyctl deploy failed`));
+		});
+	});
+
+	// Step F4: enable Bitbucket Pipelines on the repo so subsequent pushes auto-deploy.
+	const pipelinesId = 'fly-bb-enable-pipelines';
+	emit({ type: 'step:start', stepId: pipelinesId, data: `PUT /repositories/${workspace}/${slug}/pipelines_config`, timestamp: Date.now() });
+	const pipelinesRes = await fetch(`https://api.bitbucket.org/2.0/repositories/${workspace}/${slug}/pipelines_config`, {
+		method: 'PUT',
+		headers: { Authorization: `Bearer ${bitbucketToken}`, 'Content-Type': 'application/json' },
+		body: JSON.stringify({ enabled: true }),
+		signal
+	});
+	if (!pipelinesRes.ok) {
+		const body = await pipelinesRes.text();
+		emit({ type: 'step:fail', stepId: pipelinesId, data: `Bitbucket ${pipelinesRes.status}: ${body.slice(0, 200)}`, timestamp: Date.now() });
+		throw new Error(`Enable Bitbucket Pipelines failed (${pipelinesRes.status})`);
+	}
+	emit({ type: 'step:pass', stepId: pipelinesId, data: 'Bitbucket Pipelines enabled', timestamp: Date.now() });
+
+	// Step F5: add FLY_API_TOKEN as a secured repo variable so CI can deploy.
+	const varId = 'fly-bb-set-variable';
+	emit({ type: 'step:start', stepId: varId, data: `POST /repositories/${workspace}/${slug}/pipelines_config/variables FLY_API_TOKEN (secured)`, timestamp: Date.now() });
+	const varRes = await fetch(`https://api.bitbucket.org/2.0/repositories/${workspace}/${slug}/pipelines_config/variables/`, {
+		method: 'POST',
+		headers: { Authorization: `Bearer ${bitbucketToken}`, 'Content-Type': 'application/json' },
+		body: JSON.stringify({ key: 'FLY_API_TOKEN', value: flyApiToken, secured: true }),
+		signal
+	});
+	if (!varRes.ok && varRes.status !== 409) {
+		const body = await varRes.text();
+		emit({ type: 'step:fail', stepId: varId, data: `Bitbucket ${varRes.status}: ${body.slice(0, 200)}`, timestamp: Date.now() });
+		throw new Error(`Set Bitbucket variable failed (${varRes.status})`);
+	}
+	emit({ type: 'step:pass', stepId: varId, data: varRes.status === 409 ? 'Variable already set — skipping' : 'FLY_API_TOKEN set as secured variable', timestamp: Date.now() });
+}
+
+async function publishPhase(
+	config: PipelineConfig,
+	projectRoot: string,
+	projectDir: string,
+	emit: Emit,
+	signal: AbortSignal,
+	bitbucketToken: string,
+	flyApiToken: string | null
+): Promise<void> {
+	emit({ type: 'phase:start', phase: 4, phaseLabel: 'Publish to Bitbucket', timestamp: Date.now() });
+
+	const workspace = config.bitbucketWorkspace.trim();
+	const projectKey = config.bitbucketProjectKey.trim();
+	const frontendOnly = !config.publishBackend;
+	const repoDir = frontendOnly ? resolve(projectDir, 'frontend/app') : projectDir;
+	const defaultSlug = frontendOnly ? `${config.testProjectName}-frontend` : config.testProjectName;
+	const slug = (config.bitbucketRepoSlug.trim() || defaultSlug).toLowerCase();
+
+	// Step 1: validate
+	const validateId = 'publish-validate';
+	emit({ type: 'step:start', stepId: validateId, data: 'Validating Bitbucket config', timestamp: Date.now() });
+	if (!bitbucketToken) {
+		emit({ type: 'step:fail', stepId: validateId, data: 'Missing BITBUCKET_TOKEN on server', timestamp: Date.now() });
+		throw new Error('Missing BITBUCKET_TOKEN on server');
+	}
+	if (!workspace || !projectKey) {
+		emit({ type: 'step:fail', stepId: validateId, data: 'Workspace and project key are required', timestamp: Date.now() });
+		throw new Error('Workspace and project key are required');
+	}
+	if (!BITBUCKET_SLUG_RE.test(slug)) {
+		emit({ type: 'step:fail', stepId: validateId, data: `Invalid repo slug "${slug}" — must be lowercase kebab-case`, timestamp: Date.now() });
+		throw new Error(`Invalid repo slug: ${slug}`);
+	}
+	emit({ type: 'step:pass', stepId: validateId, data: `Target: ${workspace}/${slug}`, timestamp: Date.now() });
+
+	// Step 2: remove factory-core symlinks. In frontend-only mode only the
+	// frontend symlink matters; the backend one might not even exist.
+	const symlinkId = 'publish-remove-symlinks';
+	emit({ type: 'step:start', stepId: symlinkId, data: 'Removing factory-core symlinks', timestamp: Date.now() });
+	const symlinkTargets = frontendOnly
+		? ['factory-core']
+		: ['backend/app/factory-core', 'frontend/app/factory-core'];
+	for (const rel of symlinkTargets) {
+		const link = resolve(repoDir, rel);
+		if (await fileExists(link)) {
+			await unlink(link);
+			emit({ type: 'step:output', stepId: symlinkId, data: `Removed ${rel}`, timestamp: Date.now() });
+		}
+	}
+	emit({ type: 'step:pass', stepId: symlinkId, data: 'Symlinks removed', timestamp: Date.now() });
+
+	// Step 3: write .gitignore at the repo root (either project root or frontend/app).
+	const gitignoreId = 'publish-gitignore';
+	emit({ type: 'step:start', stepId: gitignoreId, data: `Writing ${frontendOnly ? 'frontend' : 'root'} .gitignore`, timestamp: Date.now() });
+	const factoryCoreAbs = resolve(projectRoot, config.factoryCorePath);
+	let baseIgnore = '';
+	if (!frontendOnly) {
+		try {
+			baseIgnore = await readFile(resolve(factoryCoreAbs, 'templates/backend/.gitignore'), 'utf-8');
+		} catch {
+			// fall back to empty base — additions below still cover the essentials
+		}
+	}
+	const additions = frontendOnly
+		? [
+			'# Factory Pipeline additions (frontend-only publish)',
+			'node_modules/',
+			'.nuxt/',
+			'.output/',
+			'dist/',
+			'.env',
+			'factory-core',
+			'.DS_Store'
+		  ].join('\n')
+		: [
+			'# Factory Pipeline additions',
+			'**/node_modules/',
+			'**/vendor/',
+			'**/.env',
+			'**/.env.app',
+			'backend/app/factory-core',
+			'frontend/app/factory-core',
+			'**/.unison*',
+			'**/perms*.set',
+			'**/.DS_Store'
+		  ].join('\n');
+	const gitignoreContent = (baseIgnore ? baseIgnore.trimEnd() + '\n\n' : '') + additions + '\n';
+	await writeFile(resolve(repoDir, '.gitignore'), gitignoreContent);
+	emit({ type: 'step:pass', stepId: gitignoreId, data: '.gitignore written', timestamp: Date.now() });
+
+	// Step 4: create Bitbucket repo
+	const createId = 'publish-create-repo';
+	emit({ type: 'step:start', stepId: createId, data: `POST /repositories/${workspace}/${slug}`, timestamp: Date.now() });
+	if (signal.aborted) throw new Error('Aborted');
+	let createRes: Response;
+	try {
+		createRes = await fetch(`https://api.bitbucket.org/2.0/repositories/${workspace}/${slug}`, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${bitbucketToken}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				scm: 'git',
+				is_private: true,
+				project: { key: projectKey },
+				mainbranch: { type: 'branch', name: 'main' },
+				description: 'Scaffolded by Factory Pipeline'
+			}),
+			signal
+		});
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		emit({ type: 'step:fail', stepId: createId, data: `Network error: ${msg}`, timestamp: Date.now() });
+		throw err;
+	}
+	if (!createRes.ok) {
+		const body = await createRes.text();
+		let hint: string;
+		switch (createRes.status) {
+			case 400: hint = 'slug may already exist or is invalid'; break;
+			case 401: hint = 'token rejected — check BITBUCKET_TOKEN'; break;
+			case 403: hint = 'token missing required scopes (repository:admin, project:write)'; break;
+			case 404: hint = 'workspace or project key not found'; break;
+			default: hint = 'unexpected Bitbucket response';
+		}
+		const msg = `Bitbucket API ${createRes.status}: ${hint} — ${body.slice(0, 200)}`;
+		emit({ type: 'step:fail', stepId: createId, data: msg, timestamp: Date.now() });
+		throw new Error(msg);
+	}
+	emit({ type: 'step:pass', stepId: createId, data: `Repo created: https://bitbucket.org/${workspace}/${slug}`, timestamp: Date.now() });
+
+	// Step 5: git init + commit (runGit injects identity flags)
+	const gitIdentity = [
+		'-c', 'user.email=factory@labor.digital',
+		'-c', 'user.name=Factory Pipeline',
+		'-c', 'init.defaultBranch=main'
+	];
+	const runGit = (args: string[], stepId: string) =>
+		runCommand('git', [...gitIdentity, ...args], repoDir, emit, stepId, signal);
+
+	await runGit(['init', '-b', 'main'], 'publish-git-init');
+	await runGit(['add', '-A'], 'publish-git-add');
+	await runGit(['commit', '-m', 'Initial scaffold via Factory Pipeline'], 'publish-git-commit');
+
+	// Step 6: add remote (token-bearing URL, redacted in output)
+	const remoteId = 'publish-remote-add';
+	const remoteWithToken = `https://x-token-auth:${bitbucketToken}@bitbucket.org/${workspace}/${slug}.git`;
+	emit({ type: 'step:start', stepId: remoteId, data: `git remote add origin https://x-token-auth:***@bitbucket.org/${workspace}/${slug}.git`, timestamp: Date.now() });
+	// Run without streaming emit, so the token never appears in output
+	await new Promise<void>((resolveFn, rejectFn) => {
+		if (signal.aborted) { rejectFn(new Error('Aborted')); return; }
+		const child = spawn('git', [...gitIdentity, 'remote', 'add', 'origin', remoteWithToken], {
+			cwd: repoDir,
+			env: { ...process.env },
+			stdio: ['ignore', 'pipe', 'pipe'],
+			signal
+		});
+		let stderr = '';
+		child.stderr.on('data', (c: Buffer) => { stderr += c.toString(); });
+		child.on('error', rejectFn);
+		child.on('close', (code: number | null) => {
+			if (code === 0) {
+				resolveFn();
+			} else {
+				rejectFn(new Error(`git remote add failed (exit ${code}): ${redactToken(stderr).trim()}`));
+			}
+		});
+	});
+	emit({ type: 'step:pass', stepId: remoteId, data: 'Remote added', timestamp: Date.now() });
+
+	// Step 7: push
+	try {
+		await runGit(['push', '-u', 'origin', 'main'], 'publish-git-push');
+	} catch (err) {
+		const pushMsg = `Repo was created at https://bitbucket.org/${workspace}/${slug} but push failed. Delete the repo in Bitbucket and re-run, or push manually.`;
+		emit({ type: 'step:fail', stepId: 'publish-git-push', data: pushMsg, timestamp: Date.now() });
+		throw err instanceof Error ? new Error(`${err.message} — ${pushMsg}`) : new Error(pushMsg);
+	}
+
+	// Step 8: rewrite remote to token-less URL so .git/config doesn't retain secrets
+	await runGit(
+		['remote', 'set-url', 'origin', `https://bitbucket.org/${workspace}/${slug}.git`],
+		'publish-remote-rewrite'
+	);
+
+	// Step 9: Fly.io frontend provisioning (only for frontend-only publishes).
+	// Full-monorepo publishes put the frontend under frontend/app/; Fly.io
+	// expects fly.toml + bitbucket-pipelines.yml at the repo root, so this
+	// path only makes sense when frontend/app/ IS the repo root.
+	if (config.frontendHostingTarget === 'fly-io') {
+		if (!frontendOnly) {
+			emit({
+				type: 'step:output',
+				stepId: 'fly-skip',
+				data: 'Skipping Fly.io provisioning: full-monorepo publish (publishBackend=true) is not supported. Set publishBackend=false for frontend-only + Fly.io.',
+				timestamp: Date.now()
+			});
+		} else if (!flyApiToken) {
+			emit({
+				type: 'step:output',
+				stepId: 'fly-skip',
+				data: 'Skipping Fly.io provisioning: FLY_API_TOKEN not set on pipeline-app server.',
+				timestamp: Date.now()
+			});
+		} else if (!config.flyIoOrgSlug.trim()) {
+			emit({
+				type: 'step:output',
+				stepId: 'fly-skip',
+				data: 'Skipping Fly.io provisioning: flyIoOrgSlug is empty.',
+				timestamp: Date.now()
+			});
+		} else {
+			await provisionFlyIoFrontend(config, repoDir, workspace, slug, bitbucketToken, flyApiToken, emit, signal);
+		}
+	}
+
+	emit({ type: 'phase:end', phase: 4, data: `https://bitbucket.org/${workspace}/${slug}`, timestamp: Date.now() });
+}
+
+// ---------------------------------------------------------------------------
+// Shared-tenant provisioning
+// ---------------------------------------------------------------------------
+
+async function sharedTenantPhase(
+	config: PipelineConfig,
+	emit: Emit,
+	signal: AbortSignal
+): Promise<void> {
+	if (signal.aborted) throw new Error('Aborted');
+
+	emit({
+		type: 'phase:start',
+		phase: 1,
+		phaseLabel: 'Shared-Tenant Provisioning',
+		timestamp: Date.now()
+	});
+
+	if (!config.sharedInstanceRepoPath) {
+		throw new Error('sharedInstanceRepoPath is required in shared-tenant mode.');
+	}
+	if (!config.tenants || config.tenants.length === 0) {
+		throw new Error('At least one tenant must be specified in shared-tenant mode.');
+	}
+
+	const stackDir = resolve(config.sharedInstanceRepoPath);
+	try {
+		const s = await stat(stackDir);
+		if (!s.isDirectory()) {
+			throw new Error(`sharedInstanceRepoPath is not a directory: ${stackDir}`);
+		}
+	} catch {
+		throw new Error(`sharedInstanceRepoPath does not exist: ${stackDir}`);
+	}
+
+	const service = config.stackServiceName?.trim() || 'app';
+
+	if (config.autoStartStack) {
+		await runCommand(
+			'docker',
+			['compose', 'up', '-d', '--wait'],
+			stackDir,
+			emit,
+			'stack:up',
+			signal
+		);
+	} else {
+		try {
+			await assertContainerRunning(service, stackDir);
+			emit({
+				type: 'step:pass',
+				stepId: 'stack:check',
+				data: `Stack is running (service=${service}).`,
+				timestamp: Date.now()
+			});
+		} catch (err) {
+			throw new Error(
+				`Shared-tenant stack not running and autoStartStack=false. ${
+					err instanceof Error ? err.message : String(err)
+				}`
+			);
+		}
+	}
+
+	for (const tenant of config.tenants) {
+		validateTenant(tenant);
+		const args = [
+			'compose',
+			'exec',
+			'-T',
+			service,
+			'vendor/bin/typo3',
+			'factory:tenant:provision',
+			`--slug=${tenant.slug}`,
+			`--domain=${tenant.domain}`,
+			`--display-name=${tenant.displayName}`,
+			`--components=${tenant.activeComponents.join(',')}`,
+			`--record-types=${tenant.activeRecordTypes.join(',')}`,
+			`--admin-email=${tenant.adminEmail}`
+		];
+		await runCommand('docker', args, stackDir, emit, `tenant:provision:${tenant.slug}`, signal);
+	}
+
+	emit({
+		type: 'phase:end',
+		phase: 1,
+		data: `Provisioned ${config.tenants.length} tenant(s) into ${service}.`,
+		timestamp: Date.now()
+	});
+}
+
+/**
+ * Placeholder for per-tenant frontend publishing in shared-tenant mode.
+ * Today's pipeline doesn't scaffold per-tenant Nuxt frontends yet (the
+ * scaffoldPhase only builds a single `{testProjectName}/frontend/app`),
+ * so there's nothing tenant-specific to publish. When per-tenant frontend
+ * scaffolding lands, this phase will iterate `config.tenants` and call a
+ * factored `publishRepo()` helper for each, using the tenant slug as the
+ * Bitbucket repo name.
+ */
+async function publishTenantFrontendsPhase(
+	config: PipelineConfig,
+	_projectRoot: string,
+	emit: Emit,
+	signal: AbortSignal
+): Promise<void> {
+	if (signal.aborted) throw new Error('Aborted');
+	emit({ type: 'phase:start', phase: 4, phaseLabel: 'Publish Tenant Frontends', timestamp: Date.now() });
+	for (const tenant of config.tenants) {
+		emit({
+			type: 'step:output',
+			stepId: `publish:${tenant.slug}`,
+			data: `Skipped: per-tenant frontend scaffolding for "${tenant.slug}" is not yet implemented. Scaffold the Nuxt app under ${config.testProjectName}/${tenant.slug}/frontend/app, then re-run Phase 4.`,
+			timestamp: Date.now()
+		});
+	}
+	emit({
+		type: 'phase:end',
+		phase: 4,
+		data: 'No tenant frontends scaffolded — skipped.',
+		timestamp: Date.now()
+	});
+}
+
+function validateTenant(t: TenantSpec): void {
+	if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(t.slug)) {
+		throw new Error(`Invalid tenant slug "${t.slug}" — must match /^[a-z0-9][a-z0-9-]{0,62}$/.`);
+	}
+	if (!/^[a-z0-9.-]+$/i.test(t.domain)) {
+		throw new Error(`Invalid tenant domain "${t.domain}".`);
+	}
+	if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(t.adminEmail)) {
+		throw new Error(`Invalid tenant adminEmail "${t.adminEmail}".`);
+	}
+	if (t.displayName.trim() === '') {
+		throw new Error(`Tenant "${t.slug}" requires a non-empty displayName.`);
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Main pipeline runner
 // ---------------------------------------------------------------------------
 export async function runPipeline(
 	config: PipelineConfig,
 	emit: Emit,
-	signal: AbortSignal
+	signal: AbortSignal,
+	bitbucketToken: string | null = null,
+	flyApiToken: string | null = null
 ): Promise<void> {
 	const projectRoot = resolve(dirname(new URL(import.meta.url).pathname), '..', '..', '..', '..');
 	const projectDir = resolve(projectRoot, config.testProjectName);
@@ -627,6 +1175,15 @@ export async function runPipeline(
 	}
 
 	try {
+		if (config.deploymentMode === 'shared-tenant') {
+			await sharedTenantPhase(config, emit, signal);
+			if (config.includePhase4) {
+				await publishTenantFrontendsPhase(config, projectRoot, emit, signal);
+			}
+			emit({ type: 'pipeline:done', timestamp: Date.now() });
+			return;
+		}
+
 		await teardownPhase(config, projectRoot, projectDir, emit, signal);
 		await scaffoldPhase(config, projectRoot, projectDir, emit, signal);
 		await componentPhase(config, projectRoot, projectDir, emit, signal);
@@ -640,6 +1197,10 @@ export async function runPipeline(
 				data: 'Skipping Phase 3 (Docker). Enable it in config to include.',
 				timestamp: Date.now()
 			});
+		}
+
+		if (config.includePhase4) {
+			await publishPhase(config, projectRoot, projectDir, emit, signal, bitbucketToken ?? '', flyApiToken);
 		}
 
 		emit({ type: 'pipeline:done', timestamp: Date.now() });

@@ -110,3 +110,18 @@ Significant features go through the design log in `.design-log/` before implemen
 1. Background → Problem → Questions → Design → Implementation Plan → Examples → Trade-offs
 2. Append an "Implementation Results" section while building, including deviations and test results.
 3. Reference existing logs by number (e.g. "See Design Log #004") when discussing related work.
+
+## License
+
+This repository is published under a split licensing scheme:
+
+- **Default — Source Available (All Rights Reserved)**: the root [`LICENSE`](./LICENSE) permits reading and auditing the code, but not using, redistributing, or modifying it. Production and commercial use require a separate written agreement with LABOR.digital.
+- **GPL-2.0-or-later**: `factory-core/typo3-extension/` and `factory-core/templates/backend/` each carry their own `LICENSE` with the GNU General Public License, version 2 or later, because they are loaded into the TYPO3 runtime.
+
+See [`LICENSES.md`](./LICENSES.md) for the full map and the rationale behind the split. To request a commercial license, contact LABOR.digital.
+
+## Trademarks
+
+"LABOR.digital" and "Factory", together with any associated logos or brand elements, are trademarks and trade names of LABOR.digital. The licenses in this repository grant rights to the *code* only — not to these marks. You may not use these names or marks to endorse or promote derived products, or to imply sponsorship or affiliation, without prior written permission.
+
+Fair nominative use — for example, stating that your own product is "compatible with Factory" or "integrates with LABOR.digital Factory" — is permitted, provided it does not suggest endorsement and does not alter the marks.

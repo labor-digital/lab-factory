@@ -26,6 +26,8 @@
 	let config = $state<PipelineConfig>({ ...DEFAULT_CONFIG });
 	let manifest = $state<Manifest | null>(null);
 	let templates = $state<SeedTemplate[]>([]);
+	let bitbucketTokenConfigured = $state(false);
+	let flyApiTokenConfigured = $state(false);
 	let running = $state(false);
 	let pipelineStatus = $state<'idle' | 'running' | 'done' | 'error'>('idle');
 	let errorMessage = $state('');
@@ -244,17 +246,43 @@
 		} catch {
 			// ignore
 		}
+
+		try {
+			const res = await fetch('/api/pipeline');
+			if (res.ok) {
+				const data = await res.json();
+				bitbucketTokenConfigured = !!data.bitbucketTokenConfigured;
+				flyApiTokenConfigured = !!data.flyApiTokenConfigured;
+			}
+		} catch {
+			// ignore
+		}
 	});
 
 	// --- Derived ---
 	let passedCount = $derived(phases.filter((p) => p.status === 'passed').length);
-	let totalPhases = $derived(config.includePhase3 ? 4 : 3);
+	let totalPhases = $derived(3 + (config.includePhase3 ? 1 : 0) + (config.includePhase4 ? 1 : 0));
 	let visiblePhases = $derived(
-		config.includePhase3 ? phases : phases.filter((p) => p.info.id !== 3)
+		phases.filter((p) =>
+			(p.info.id !== 3 || config.includePhase3) &&
+			(p.info.id !== 4 || config.includePhase4)
+		)
 	);
 	let backendUrl = $derived(config.typo3ApiBaseUrl);
 	let frontendUrl = $derived(config.typo3ApiBaseUrl.replace(/-bac\./, '-fro.'));
-	let canStart = $derived(!config.includePhase3 || config.sudoPassword.trim().length > 0);
+	let bitbucketRepoUrl = $derived(() => {
+		if (!config.includePhase4) return '';
+		const slug = (config.bitbucketRepoSlug.trim() || config.testProjectName).toLowerCase();
+		return `https://bitbucket.org/${config.bitbucketWorkspace}/${slug}`;
+	});
+	let canStart = $derived(
+		(!config.includePhase3 || config.sudoPassword.trim().length > 0) &&
+		(!config.includePhase4 || (
+			bitbucketTokenConfigured &&
+			config.bitbucketWorkspace.trim().length > 0 &&
+			config.bitbucketProjectKey.trim().length > 0
+		))
+	);
 </script>
 
 <div class="h-screen overflow-hidden">
@@ -270,12 +298,20 @@
 				<Banner />
 
 				<div class="mb-6">
-					<ConfigForm {config} {manifest} {templates} disabled={false} onchange={(c) => (config = c)} />
+					<ConfigForm {config} {manifest} {templates} {bitbucketTokenConfigured} {flyApiTokenConfigured} disabled={false} onchange={(c) => (config = c)} />
 				</div>
 
 				<div class="flex items-center justify-end gap-3">
 					{#if !canStart}
-						<span class="text-xs text-zinc-600">Sudo password required for Phase 3</span>
+						<span class="text-xs text-zinc-600">
+							{#if config.includePhase3 && config.sudoPassword.trim().length === 0}
+								Sudo password required for Phase 3
+							{:else if config.includePhase4 && !bitbucketTokenConfigured}
+								BITBUCKET_TOKEN missing on server
+							{:else if config.includePhase4}
+								Bitbucket workspace and project key required
+							{/if}
+						</span>
 					{/if}
 					<button
 						type="button"
@@ -383,6 +419,17 @@
 										class="text-cyan-400 hover:text-cyan-300 text-sm underline underline-offset-2 break-all"
 									>{backendUrl}</a>
 								</div>
+								{#if config.includePhase4 && bitbucketRepoUrl()}
+									<div class="flex items-start gap-3">
+										<span class="text-zinc-500 text-xs uppercase tracking-wider w-20 shrink-0 pt-0.5">Bitbucket</span>
+										<a
+											href={bitbucketRepoUrl()}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="text-cyan-400 hover:text-cyan-300 text-sm underline underline-offset-2 break-all"
+										>{bitbucketRepoUrl()}</a>
+									</div>
+								{/if}
 							</div>
 
 							<!-- Login credentials -->

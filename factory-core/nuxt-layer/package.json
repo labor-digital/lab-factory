@@ -1,7 +1,54 @@
 {
 	"name": "@labor-digital/factory-nuxt-layer",
-	"version": "1.0.0",
+	"version": "0.1.0",
+	"description": "Shared Nuxt layer for the LABOR.digital Factory headless CMS boilerplate — Content Block–driven Vue components consumed by client frontends over a TYPO3 headless backend.",
+	"license": "MIT",
+	"keywords": [
+		"nuxt",
+		"nuxt-layer",
+		"typo3",
+		"headless",
+		"content-blocks",
+		"factory",
+		"labor-digital"
+	],
+	"author": "LABOR.digital <info@labor.tools> (https://labor.digital)",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/labor-digital/lab-factory.git",
+		"directory": "factory-core/nuxt-layer"
+	},
+	"homepage": "https://github.com/labor-digital/lab-factory/tree/main/factory-core/nuxt-layer#readme",
+	"bugs": {
+		"url": "https://github.com/labor-digital/lab-factory/issues"
+	},
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	},
 	"type": "module",
+	"exports": {
+		".": "./nuxt.config.ts",
+		"./app.vue": "./app.vue",
+		"./components/*": "./components/*",
+		"./composables/*": "./composables/*",
+		"./layouts/*": "./layouts/*",
+		"./lib/*": "./lib/*",
+		"./plugins/*": "./plugins/*",
+		"./utils/*": "./utils/*"
+	},
+	"files": [
+		"app.vue",
+		"components",
+		"composables",
+		"layouts",
+		"lib",
+		"plugins",
+		"utils",
+		"nuxt.config.ts",
+		"LICENSE",
+		"README.md"
+	],
 	"dependencies": {
 		"@t3headless/nuxt-typo3": "^2.3.1",
 		"@nuxt/kit": "^4.4.2",

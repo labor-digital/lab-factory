@@ -2,6 +2,8 @@
     "name": "Node 22",
     "replaceProjectNameIn": [
         ".env.template",
+        ".env.production.template",
+        "fly.toml",
         "src/package.json"
     ]
 }

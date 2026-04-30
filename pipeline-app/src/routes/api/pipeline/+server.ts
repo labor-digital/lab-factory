@@ -1,10 +1,26 @@
 import { json } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 import type { PipelineConfig, StepEvent } from '$lib/pipeline/types.js';
 import { runPipeline } from '$lib/pipeline/executor.js';
 import { hashArgon2id } from '$lib/pipeline/hash.js';
 
+function getBitbucketToken(): string | null {
+	return env.BITBUCKET_TOKEN?.trim() ? env.BITBUCKET_TOKEN : null;
+}
+
+function getFlyApiToken(): string | null {
+	return env.FLY_API_TOKEN?.trim() ? env.FLY_API_TOKEN : null;
+}
+
 let currentRun: AbortController | null = null;
+
+export const GET: RequestHandler = async () => {
+	return json({
+		bitbucketTokenConfigured: !!getBitbucketToken(),
+		flyApiTokenConfigured: !!getFlyApiToken()
+	});
+};
 
 export const POST: RequestHandler = async ({ request }) => {
 	if (currentRun) {
@@ -12,6 +28,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const config: PipelineConfig = await request.json();
+	const bitbucketToken = getBitbucketToken();
+	const flyApiToken = getFlyApiToken();
+
+	if (config.includePhase4 && !bitbucketToken) {
+		return json({ error: 'BITBUCKET_TOKEN not set — add it to pipeline-app/.env and restart the dev server' }, { status: 400 });
+	}
 
 	// Hash the plaintext install tool password to Argon2id before passing to executor
 	try {
@@ -38,7 +60,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				}
 			};
 
-			runPipeline(config, emit, controller.signal).finally(() => {
+			runPipeline(config, emit, controller.signal, bitbucketToken, flyApiToken).finally(() => {
 				currentRun = null;
 				try {
 					streamController.close();

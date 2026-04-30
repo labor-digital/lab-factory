@@ -42,5 +42,22 @@ export const DEFAULT_CONFIG: PipelineConfig = {
 	languages: ['de', 'en'],
 	includePhase3: false,
 	sudoPassword: '',
-	settings: DEFAULT_SETTINGS
+	settings: DEFAULT_SETTINGS,
+	includePhase4: false,
+	bitbucketWorkspace: '',
+	bitbucketProjectKey: '',
+	bitbucketRepoSlug: '',
+	publishBackend: true,
+	factoryCoreSource: 'local',
+	factoryCoreComposerConstraint: '^0.1',
+	factoryCoreNpmConstraint: '^0.1.0',
+	deploymentMode: 'standalone',
+	sharedInstanceRepoPath: './shared-tenant/backend/app',
+	tenants: [],
+	autoStartStack: true,
+	stackServiceName: 'app',
+	frontendHostingTarget: 'fly-io',
+	flyIoOrgSlug: 'labor-digital',
+	flyIoRegion: 'ams',
+	flyIoMachineSize: 'shared-cpu-1x-512'
 };

@@ -1,4 +1,4 @@
-export type PhaseId = 0 | 1 | 2 | 3;
+export type PhaseId = 0 | 1 | 2 | 3 | 4;
 export type StepStatus = 'pending' | 'running' | 'passed' | 'failed' | 'skipped';
 
 export type TailwindColor =
@@ -42,6 +42,51 @@ export interface SeedTemplate {
 	settings?: Partial<FactorySettings>;
 }
 
+export type DeploymentMode = 'standalone' | 'shared-tenant';
+
+/**
+ * Where a scaffolded client's Nuxt frontend is hosted.
+ *
+ * - `fly-io`: default. Plain Node containers on Fly.io with scale-to-zero.
+ *   Deployed via Bitbucket Pipelines calling `flyctl deploy --remote-only`.
+ * - `aws-ecs`: opt-in. Per-client or shared ECS task on Labor's existing cluster.
+ *   Shipped as a reference Bitbucket Pipelines workflow; see DL #012 Part A.
+ */
+export type FrontendHostingTarget = 'fly-io' | 'aws-ecs';
+
+/**
+ * Fly.io machine sizes we support as a menu. Named per Fly's catalog
+ * (`shared-cpu-<vcpu>x-<mb>`). 512 MB is sufficient for a typical Nuxt SSR
+ * client site; 1 GB gives headroom for bigger bundles or concurrent SSR.
+ */
+export type FlyIoMachineSize = 'shared-cpu-1x-512' | 'shared-cpu-2x-1024';
+
+/**
+ * Where a scaffolded client project pulls `factory-core` from.
+ *
+ * - `local`: path repo + symlinks to the monorepo's `factory-core/` (today's
+ *   default). Used for internal Factory development against the live sources.
+ * - `npm`: published packages — `composer require labor-digital/factory-core`
+ *   and `npm install @labor-digital/factory-nuxt-layer`. Used for real
+ *   client repos that ship outside the monorepo.
+ */
+export type FactoryCoreSource = 'local' | 'npm';
+
+/**
+ * One tenant inside the shared TYPO3 instance. Multiple TenantSpec entries
+ * under one PipelineConfig represent a single client owning several sites
+ * (see Design Log #011). Each spec becomes one `config/sites/{slug}/` tree
+ * plus one call to `factory:tenant:provision` in the shared instance.
+ */
+export interface TenantSpec {
+	slug: string;
+	domain: string;
+	displayName: string;
+	activeComponents: string[];
+	activeRecordTypes: string[];
+	adminEmail: string;
+}
+
 export interface PipelineConfig {
 	labCliBin: string;
 	factoryCorePath: string;
@@ -59,6 +104,57 @@ export interface PipelineConfig {
 	includePhase3: boolean;
 	sudoPassword: string;
 	settings: FactorySettings;
+	includePhase4: boolean;
+	bitbucketWorkspace: string;
+	bitbucketProjectKey: string;
+	bitbucketRepoSlug: string;
+	/**
+	 * When publishing in standalone mode, include the backend in the repo.
+	 * Default is true for backwards compatibility. Set false to publish only
+	 * the frontend — appropriate when the backend lives in a shared instance
+	 * or is managed elsewhere.
+	 */
+	publishBackend: boolean;
+	/**
+	 * 'standalone' — today's default, one full Docker stack per client with
+	 * a project-root `factory.json`.
+	 *
+	 * 'shared-tenant' — provision one or more tenants inside an existing
+	 * shared TYPO3 instance. Writes `config/sites/{slug}/` entries to
+	 * `sharedInstanceRepoPath` and expects the operator to run
+	 * `factory:tenant:provision` inside the running instance for DB records.
+	 */
+	/**
+	 * Where scaffolded client repos pull factory-core from. Defaults to
+	 * `local` for internal dev against the monorepo sources; switch to `npm`
+	 * for real client projects consuming the published packages.
+	 */
+	factoryCoreSource: FactoryCoreSource;
+	/** Constraint for `composer require labor-digital/factory-core` in npm mode. */
+	factoryCoreComposerConstraint: string;
+	/** Constraint for `npm install @labor-digital/factory-nuxt-layer` in npm mode. */
+	factoryCoreNpmConstraint: string;
+	deploymentMode: DeploymentMode;
+	/** Shared-tenant mode only: absolute path to the shared instance's repo checkout. */
+	sharedInstanceRepoPath: string;
+	/** Shared-tenant mode only: one or more tenants owned by this client. */
+	tenants: TenantSpec[];
+	/** Shared-tenant mode only: bring the stack up (`docker compose up -d --wait`) if it isn't running. */
+	autoStartStack: boolean;
+	/** Shared-tenant mode only: docker-compose service name to target for `exec` (defaults to `app`). */
+	stackServiceName: string;
+	/**
+	 * Frontend hosting target for scaffolded client Nuxt apps. Default `fly-io`.
+	 * Applies to both standalone and shared-tenant frontend publishing paths.
+	 * See DL #012 Amendment 2026-04.
+	 */
+	frontendHostingTarget: FrontendHostingTarget;
+	/** Fly.io organization slug (e.g. `labor-digital`). Required when target is `fly-io`. */
+	flyIoOrgSlug: string;
+	/** Fly.io region code (e.g. `ams`, `fra`). Sets `primary_region` in fly.toml. */
+	flyIoRegion: string;
+	/** Fly.io machine size for the primary VM block in fly.toml. */
+	flyIoMachineSize: FlyIoMachineSize;
 }
 
 export interface StepEvent {
@@ -88,7 +184,8 @@ export const PHASES: PhaseInfo[] = [
 	{ id: 0, label: 'Teardown', icon: '🧹' },
 	{ id: 1, label: 'Scaffolding', icon: '🏗️' },
 	{ id: 2, label: 'Component Injection', icon: '🧩' },
-	{ id: 3, label: 'Docker & Bootstrapping', icon: '🐳' }
+	{ id: 3, label: 'Docker & Bootstrapping', icon: '🐳' },
+	{ id: 4, label: 'Publish to Bitbucket', icon: '🚀' }
 ];
 
 export interface ManifestComponent {

@@ -1,0 +1,4 @@
+name: labor-digital/client_sitepackage
+label: Client Sitepackage
+dependencies:
+  - labor-digital/factory-core

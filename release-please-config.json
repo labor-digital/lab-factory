@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "separate-pull-requests": false,
+  "include-component-in-tag": true,
+  "include-v-in-tag": true,
+  "packages": {
+    "factory-core/nuxt-layer": {
+      "release-type": "node",
+      "package-name": "@labor-digital/factory-nuxt-layer",
+      "component": "factory-nuxt-layer",
+      "changelog-path": "CHANGELOG.md"
+    },
+    "factory-core/typo3-extension": {
+      "release-type": "simple",
+      "package-name": "labor-digital/factory-core",
+      "component": "factory-core",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "composer.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "generic",
+          "path": "ext_emconf.php"
+        }
+      ]
+    }
+  },
+  "plugins": [
+    {
+      "type": "node-workspace"
+    }
+  ]
+}

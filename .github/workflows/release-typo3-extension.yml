@@ -1,0 +1,32 @@
+name: release-typo3-extension
+
+on:
+  push:
+    tags:
+      - "factory-core-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: factory-core/typo3-extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+
+      - name: Validate composer.json
+        run: composer validate --strict --no-check-version
+
+      - name: Sanity check ext_emconf.php syntax
+        run: php -l ext_emconf.php
+
+      - name: Note
+        run: echo "Packagist picks up this tag via the repository webhook — no manual publish step needed."

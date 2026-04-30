@@ -1,0 +1,58 @@
+name: pr-checks
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  nuxt-layer:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: factory-core/nuxt-layer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: npm pack dry-run (verify tarball shape)
+        run: npm pack --dry-run
+
+  typo3-extension:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: factory-core/typo3-extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+      - name: composer validate
+        run: composer validate --strict --no-check-version
+      - name: PHP syntax check
+        run: |
+          find Classes -name "*.php" -print0 | xargs -0 -n1 php -l
+          php -l ext_emconf.php
+          php -l ext_localconf.php
+
+  pipeline-app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pipeline-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: pipeline-app/package-lock.json
+      - run: npm ci
+      - run: npx svelte-kit sync
+      - run: npx svelte-check --tsconfig ./tsconfig.json
