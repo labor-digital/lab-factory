@@ -1,6 +1,6 @@
 # @labor-digital/factory-nuxt-layer
 
-Shared Nuxt layer for the [LABOR.digital Factory](https://github.com/labor-digital/factory) headless CMS boilerplate.
+Shared Nuxt layer for the [LABOR.digital Factory](https://github.com/labor-digital/lab-factory) headless CMS boilerplate.
 
 Provides Content Block–driven Vue components that consume a TYPO3 headless backend via [`@t3headless/nuxt-typo3`](https://www.npmjs.com/package/@t3headless/nuxt-typo3).
 
