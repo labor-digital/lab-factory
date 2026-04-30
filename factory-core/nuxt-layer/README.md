@@ -23,11 +23,10 @@ In your Nuxt app's `nuxt.config.ts`:
 ```ts
 export default defineNuxtConfig({
   extends: ['@labor-digital/factory-nuxt-layer'],
-  runtimeConfig: {
-    public: {
-      typo3: {
-        apiBaseUrl: process.env.NUXT_PUBLIC_TYPO3_API_BASE_URL
-      }
+  typo3: {
+    api: {
+      baseUrl: process.env.TYPO3_API_BASE_URL,
+      proxyReqHeaders: ['cookie']
     }
   }
 });
