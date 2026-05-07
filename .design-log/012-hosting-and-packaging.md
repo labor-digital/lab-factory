@@ -462,3 +462,57 @@ These remain to be done manually before the first publish actually succeeds:
 - Author email is `info@labor.tools` — placeholder; confirm the actual public contact address before tagging or substitute in a follow-up commit.
 - Once 0.1.0 is live, default `factoryCoreSource` should flip from `local` to `npm` for new client scaffolds (currently `local` for monorepo development convenience).
 - Promotion to `1.0.0` (drop `bump-minor-pre-major` / `bump-patch-for-minor-pre-major` from release-please config, ext_emconf `state: stable`) happens once a paying client is running on the published packages.
+
+## Amendment 2026-05-07 — Shared-tenant TYPO3 deploys from a Bitbucket repo via Composer
+
+### Why this supersedes original Part A
+
+DL #012 Part A specified deploying the shared-tenant TYPO3 backend out of `shared-tenant/backend/app/` in this monorepo via GitHub Actions to AWS ECS. Two facts on the ground reshuffled that decision:
+
+1. **LABOR ops infra is on Bitbucket.** AWS keys, Pipelines, deploy patterns, ECR/ECS access — all already wired into the existing typo3 client deploys. Forcing GitHub Actions for one service would mean reimplementing all of that with new IAM, OIDC config, etc. for no gain.
+2. **`labor-digital/factory-core` is now a published Composer package.** Renovate can drive updates instead of monorepo-coupled deploys, which gives the shared-tenant operator explicit control over WHEN factory upgrades land — important for a service hosting paying tenants where a bad core release shouldn't auto-ship.
+
+### What changes
+
+- **Source of truth for the production deploy moves to a separate Bitbucket repo:** `git@bitbucket.org:labor-digital/labor-factory-multitenant.git`. Self-contained — has its own composer.json, Dockerfile, bitbucket-pipelines.yml, ECS task definition, Renovate config.
+- **factory-core flows in via Composer**, not via path-repo / mirror / monorepo coupling. `composer require labor-digital/factory-core: ^0.1` in the new repo.
+- **Updates are Renovate-driven.** factory-core releases get an at-any-time PR (own group); TYPO3 core + ecosystem deps get grouped weekly PRs. Operator merges = ships.
+- **Deploy: Bitbucket Pipelines → ECR → ECS.** Bitbucket repo variables for AWS credentials (with OIDC as documented upgrade path), `atlassian/aws-ecr-push-image` pipe to push, `aws ecs register-task-definition` + `update-service --force-new-deployment` + `aws ecs wait services-stable` to roll out and gate the build on a healthy rollout.
+- **`shared-tenant/` stays in this monorepo as a dev fixture only.** Boot the stack on a laptop with Docker Compose for design-log work and CLI-command development. Production is not deployed from here anymore.
+
+### Deliverables (shipped 2026-05-07)
+
+Created at `/Users/kim/Work/Labor/labor-factory-multitenant/` (sibling to this monorepo, separate repo):
+
+- `composer.json` — TYPO3 13 base distribution + factory-core ^0.1 from Packagist; in-tree `client_sitepackage` via path repo.
+- `Dockerfile` — multi-stage: `composer:2` for deps install, `php:8.4-apache` runtime, OPcache primed for production, non-root, HEALTHCHECK on `/healthz`.
+- `public/healthz.php` — DB-independent ALB health endpoint (200 "ok"). DB outages should not cycle ECS tasks.
+- `bitbucket-pipelines.yml` — three-step pipeline (composer-validate, build-and-push, deploy-ecs); custom `deploy-master` pipeline for hot deploys without code changes.
+- `ecs-task-definition.json` — task spec with `${IMAGE}` placeholder rewritten by the deploy step, Secrets Manager refs for app/db/smtp, two EFS volumes (`fileadmin`, `config-sites`), CloudWatch log group, container-level health check.
+- `.env.production.template` — documents every env var the additional.php expects.
+- `renovate.json` — factory-core dedicated PR + at-any-time schedule; typo3-core + ecosystem grouped weekly; lockfile maintenance; vulnerability alerts on at-any-time.
+- `config/system/{settings.php,additional.php}` — lifted from monorepo's shared-tenant/, encryption key/sitename placeholders removed (env-driven).
+- `packages/client_sitepackage/` — TCA hooks for component activation, lifted from monorepo with composer.json updated to `factory-core: ^0.1`.
+- `public/.htaccess` + `public/index.php` — standard TYPO3 13 entry point.
+- `README.md` — operator runbook covering AWS resource setup, Bitbucket variable list, first-boot housekeeping, tenant provisioning, update cadence, and the local-dev → production flow.
+
+### Operator setup checklist (one-time, mostly outside this monorepo)
+
+1. AWS: ECR repo, ECS service + task family, RDS MySQL, EFS with two access points, Secrets Manager entries (app/db/smtp), IAM execution + task roles. Most reusable from existing LABOR deploys.
+2. Bitbucket: create the repo, add the listed repository variables (all secured), enable Pipelines.
+3. Replace placeholders in `ecs-task-definition.json` (`ACCOUNT_ID`, `REGION`, `fs-PLACEHOLDER`).
+4. `git push` from the seeded folder. First Pipelines run builds + deploys.
+5. ECS Exec into the task → `vendor/bin/typo3 setup` → `factory:tenant:provision` for the first tenant.
+
+### Deviations from original DL #012 Part A
+
+- **Bitbucket Pipelines, not GitHub Actions.** Reason above.
+- **Separate repo, not in-monorepo.** Reason above.
+- **Renovate-driven updates, not release-please-coupled deploys.** Decoupling factory development cadence from production update cadence is the whole point of going to a published package.
+- **`Dockerfile` uses upstream `php:8.4-apache`, not a LABOR base image.** Smaller surface, less coupling to LABOR's image build pipeline. Keeps the repo independently buildable on any developer's laptop. Existing typo3 client deploys can keep using LABOR base images; this one doesn't need to.
+
+### Scope explicitly out (handled in a follow-up chat / track)
+
+- Pipeline-app changes to programmatically create/update Bitbucket repos for new clients (frontend AND dedicated-instance backend). Different scope, different review surface.
+- Deleting `shared-tenant/` from the monorepo. Kept as a local dev fixture for now; revisit once the Bitbucket repo has been running in prod for a while.
+- TER (TYPO3 Extension Repository) registration — still deferred.
