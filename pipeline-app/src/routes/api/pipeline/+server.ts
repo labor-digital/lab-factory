@@ -13,12 +13,17 @@ function getFlyApiToken(): string | null {
 	return env.FLY_API_TOKEN?.trim() ? env.FLY_API_TOKEN : null;
 }
 
+function getStagingApiToken(): string | null {
+	return env.STAGING_API_TOKEN?.trim() ? env.STAGING_API_TOKEN : null;
+}
+
 let currentRun: AbortController | null = null;
 
 export const GET: RequestHandler = async () => {
 	return json({
 		bitbucketTokenConfigured: !!getBitbucketToken(),
-		flyApiTokenConfigured: !!getFlyApiToken()
+		flyApiTokenConfigured: !!getFlyApiToken(),
+		stagingApiTokenConfigured: !!getStagingApiToken()
 	});
 };
 

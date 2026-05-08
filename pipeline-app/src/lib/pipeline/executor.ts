@@ -784,6 +784,175 @@ async function provisionFlyIoFrontend(
 	emit({ type: 'step:pass', stepId: varId, data: varRes.status === 409 ? 'Variable already set — skipping' : 'FLY_API_TOKEN set as secured variable', timestamp: Date.now() });
 }
 
+async function stagingPhase(
+	config: PipelineConfig,
+	projectRoot: string,
+	projectDir: string,
+	emit: Emit,
+	signal: AbortSignal,
+	flyApiToken: string | null
+): Promise<void> {
+	emit({ type: 'phase:start', phase: 4, phaseLabel: 'Staging Deploy', timestamp: Date.now() });
+	void projectRoot;
+
+	const baseUrl = config.stagingApiBaseUrl.trim();
+	const token = process.env.STAGING_API_TOKEN?.trim() ?? '';
+
+	const validateId = 'staging-validate';
+	emit({ type: 'step:start', stepId: validateId, data: 'Validating staging config', timestamp: Date.now() });
+	if (!baseUrl) {
+		emit({ type: 'step:fail', stepId: validateId, data: 'stagingApiBaseUrl is empty', timestamp: Date.now() });
+		throw new Error('stagingApiBaseUrl is empty');
+	}
+	if (!token) {
+		emit({ type: 'step:fail', stepId: validateId, data: 'STAGING_API_TOKEN missing on server', timestamp: Date.now() });
+		throw new Error('STAGING_API_TOKEN missing on server');
+	}
+	if (config.tenants.length === 0 && !config.bitbucketRepoSlug && !config.testProjectName) {
+		emit({ type: 'step:fail', stepId: validateId, data: 'No tenant slug source — set tenants[] or testProjectName', timestamp: Date.now() });
+		throw new Error('No tenant slug source');
+	}
+	emit({ type: 'step:pass', stepId: validateId, data: `Target: ${baseUrl}`, timestamp: Date.now() });
+
+	// Re-check version compat (defense in depth — the operator may have changed seed since the UI fetched).
+	const compatId = 'staging-version-compat';
+	emit({ type: 'step:start', stepId: compatId, data: `GET ${baseUrl}/api/multitenant/version`, timestamp: Date.now() });
+	const { fetchDeployedVersion } = await import('$lib/staging/api.js');
+	const { evaluate } = await import('$lib/staging/versionCompat.js');
+	const seedCoreVersion = await readSeedCoreVersion(projectDir, config.seedTemplate);
+	const deployed = await fetchDeployedVersion(baseUrl, token);
+	const compat = evaluate(seedCoreVersion, deployed);
+	emit({ type: 'step:output', stepId: compatId, data: `seed=${seedCoreVersion} deployed=${deployed.factoryCoreVersion} match=${compat.matches}`, timestamp: Date.now() });
+	if (!compat.matches) {
+		if (!config.forceVersionMismatch) {
+			emit({ type: 'step:fail', stepId: compatId, data: `Version mismatch: ${compat.reason}. Set forceVersionMismatch to override.`, timestamp: Date.now() });
+			throw new Error(`Version mismatch: ${compat.reason}`);
+		}
+		emit({ type: 'step:output', stepId: compatId, data: `version-mismatch (forced) — ${compat.reason}`, timestamp: Date.now() });
+	}
+	emit({ type: 'step:pass', stepId: compatId, data: compat.reason, timestamp: Date.now() });
+
+	// Resolve the tenant payload. Priority: explicit config.tenants[0]; fallback: synthesize one from the project + seed.
+	const tenant: TenantSpec = config.tenants[0] ?? {
+		slug: (config.bitbucketRepoSlug.trim() || config.testProjectName).toLowerCase(),
+		domain: deriveDomain(config),
+		displayName: config.testProjectName,
+		activeComponents: config.componentsToTest,
+		activeRecordTypes: config.activeRecordTypes,
+		adminEmail: ''
+	};
+	if (!tenant.adminEmail) {
+		emit({ type: 'step:output', stepId: 'staging-validate', data: 'No adminEmail set; the multitenant API will reject the request — expect 400.', timestamp: Date.now() });
+	}
+
+	// POST /tenants
+	const postId = 'staging-post-tenant';
+	emit({ type: 'step:start', stepId: postId, data: `POST ${baseUrl}/api/multitenant/tenants slug=${tenant.slug}`, timestamp: Date.now() });
+	const { createTenant, getTenant } = await import('$lib/staging/api.js');
+	try {
+		const result = await createTenant(baseUrl, token, {
+			slug: tenant.slug,
+			domain: tenant.domain,
+			displayName: tenant.displayName,
+			components: tenant.activeComponents,
+			recordTypes: tenant.activeRecordTypes,
+			adminEmail: tenant.adminEmail,
+			coreVersion: seedCoreVersion
+		});
+		emit({ type: 'step:output', stepId: postId, data: JSON.stringify(result).slice(0, 500), timestamp: Date.now() });
+	} catch (err) {
+		emit({ type: 'step:fail', stepId: postId, data: (err as Error).message, timestamp: Date.now() });
+		throw err;
+	}
+	emit({ type: 'step:pass', stepId: postId, data: 'Tenant submitted', timestamp: Date.now() });
+
+	// Poll until ready (5 min budget)
+	const pollId = 'staging-poll-tenant';
+	emit({ type: 'step:start', stepId: pollId, data: `Polling GET /tenants/${tenant.slug}`, timestamp: Date.now() });
+	const deadline = Date.now() + 5 * 60_000;
+	let ready = false;
+	while (Date.now() < deadline) {
+		if (signal.aborted) throw new Error('Aborted');
+		const t = (await getTenant(baseUrl, token, tenant.slug)) as { status?: string; slug?: string } | null;
+		if (t && t.status === 'ready') {
+			ready = true;
+			break;
+		}
+		if (t) {
+			emit({ type: 'step:output', stepId: pollId, data: `status=${t.status ?? '(missing)'}`, timestamp: Date.now() });
+		}
+		await new Promise((r) => setTimeout(r, 3000));
+	}
+	if (!ready) {
+		emit({ type: 'step:fail', stepId: pollId, data: 'Tenant did not reach status=ready within 5 minutes', timestamp: Date.now() });
+		throw new Error('Tenant ready timeout');
+	}
+	emit({ type: 'step:pass', stepId: pollId, data: 'Tenant ready', timestamp: Date.now() });
+
+	// flyctl deploy the frontend (idempotent — fly app may already exist).
+	if (!flyApiToken) {
+		emit({ type: 'step:output', stepId: 'staging-fly-skip', data: 'FLY_API_TOKEN not set — skipping frontend deploy.', timestamp: Date.now() });
+		return;
+	}
+	const flyId = 'staging-fly-deploy';
+	const appName = tenant.slug + '-frontend';
+	const frontendDir = resolve(projectDir, 'frontend/app');
+	emit({ type: 'step:start', stepId: flyId, data: `flyctl deploy --remote-only --app ${appName}`, timestamp: Date.now() });
+	await new Promise<void>((resolveFn, rejectFn) => {
+		if (signal.aborted) {
+			rejectFn(new Error('Aborted'));
+			return;
+		}
+		const child = spawn('flyctl', ['deploy', '--remote-only', '--app', appName], {
+			cwd: frontendDir,
+			env: { ...process.env, FLY_API_TOKEN: flyApiToken },
+			stdio: ['ignore', 'pipe', 'pipe'],
+			signal
+		});
+		let stderr = '';
+		child.stdout.on('data', (c: Buffer) => emit({ type: 'step:output', stepId: flyId, data: c.toString(), timestamp: Date.now() }));
+		child.stderr.on('data', (c: Buffer) => {
+			stderr += c.toString();
+			emit({ type: 'step:output', stepId: flyId, data: c.toString(), timestamp: Date.now() });
+		});
+		child.on('error', rejectFn);
+		child.on('close', (code: number | null) => {
+			if (code === 0) {
+				emit({ type: 'step:pass', stepId: flyId, data: 'Frontend deployed', timestamp: Date.now() });
+				resolveFn();
+				return;
+			}
+			emit({ type: 'step:fail', stepId: flyId, data: `flyctl deploy exited ${code}: ${stderr.slice(0, 300)}`, timestamp: Date.now() });
+			rejectFn(new Error(`flyctl deploy failed: ${stderr.slice(0, 300)}`));
+		});
+	});
+
+	emit({ type: 'phase:end', phase: 4, timestamp: Date.now() });
+}
+
+async function readSeedCoreVersion(projectDir: string, seedTemplate: string): Promise<string> {
+	if (!seedTemplate) return '';
+	try {
+		const path = resolve(projectDir, 'frontend/app/src/factory.json');
+		const json = JSON.parse(await readFile(path, 'utf-8'));
+		return typeof json.core_version === 'string' ? json.core_version : '';
+	} catch {
+		return '';
+	}
+}
+
+function deriveDomain(config: PipelineConfig): string {
+	if (config.tenants[0]?.domain) return config.tenants[0].domain;
+	if (config.typo3ApiBaseUrl) {
+		try {
+			return new URL(config.typo3ApiBaseUrl).host;
+		} catch {
+			// fall through
+		}
+	}
+	return `${config.testProjectName}.example.com`;
+}
+
 async function publishPhase(
 	config: PipelineConfig,
 	projectRoot: string,
@@ -1184,9 +1353,24 @@ export async function runPipeline(
 			return;
 		}
 
+		if (config.targetEnvironment === 'prod') {
+			emit({
+				type: 'pipeline:error',
+				data: 'Production target is disabled until the prod multitenant instance is provisioned (DL #015).',
+				timestamp: Date.now()
+			});
+			return;
+		}
+
 		await teardownPhase(config, projectRoot, projectDir, emit, signal);
 		await scaffoldPhase(config, projectRoot, projectDir, emit, signal);
 		await componentPhase(config, projectRoot, projectDir, emit, signal);
+
+		if (config.targetEnvironment === 'staging') {
+			await stagingPhase(config, projectRoot, projectDir, emit, signal, flyApiToken);
+			emit({ type: 'pipeline:done', timestamp: Date.now() });
+			return;
+		}
 
 		if (config.includePhase3) {
 			await dockerPhase(config, projectRoot, projectDir, emit, signal);

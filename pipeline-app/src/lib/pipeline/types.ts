@@ -119,6 +119,34 @@ export interface ReseedRequest {
 	force?: 'theming-only' | 'db-reseed' | null;
 }
 
+/**
+ * Where a pipeline run targets. `local` is today's full Docker stack on the
+ * operator's machine. `staging` posts the tenant to the deployed multitenant
+ * API + triggers a Fly.io frontend deploy. `prod` is a placeholder until the
+ * production shared-tenant instance is provisioned (DL #015 keeps it in the
+ * UI as a disabled segment).
+ */
+export type TargetEnvironment = 'local' | 'staging' | 'prod';
+
+/**
+ * Subset of `GET /api/multitenant/version` that pipeline-app actually consumes
+ * for compatibility checks and badge display.
+ */
+export interface DeployedVersionInfo {
+	factoryCoreVersion: string;
+	factoryMultitenantApiVersion: string;
+	typo3Version: string;
+	supportedSeedSchema: { min: string; max: string };
+}
+
+export interface VersionCompatResult {
+	deployed: DeployedVersionInfo | null;
+	seedConstraint: string;
+	matches: boolean;
+	reason: string;
+	remediation?: { composerRequire: string; renovateLinkHint: string };
+}
+
 export type DeploymentMode = 'standalone' | 'shared-tenant';
 
 /**
@@ -239,6 +267,22 @@ export interface PipelineConfig {
 	 * the public Factory monorepo.
 	 */
 	seedsRepoPath: string;
+	/**
+	 * Where a pipeline run targets — see DL #015. `local` is the existing
+	 * full Docker scaffold; `staging` posts the tenant to the deployed
+	 * multitenant API + Fly.io deploy; `prod` is disabled until 1.0.
+	 */
+	targetEnvironment: TargetEnvironment;
+	/**
+	 * Base URL of the deployed multitenant TYPO3 (e.g.
+	 * `https://staging.labor-factory.example`). The bearer token never
+	 * touches this object — it lives in the SvelteKit server's env.
+	 */
+	stagingApiBaseUrl: string;
+	/** Server reports whether STAGING_API_TOKEN is set. Read-only from the client. */
+	stagingApiTokenConfigured: boolean;
+	/** When true, allow a staging run despite a version mismatch (tagged in the SSE log). */
+	forceVersionMismatch: boolean;
 }
 
 export interface StepEvent {

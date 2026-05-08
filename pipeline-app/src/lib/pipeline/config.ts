@@ -60,5 +60,9 @@ export const DEFAULT_CONFIG: PipelineConfig = {
 	flyIoOrgSlug: 'labor-digital',
 	flyIoRegion: 'ams',
 	flyIoMachineSize: 'shared-cpu-1x-512',
-	seedsRepoPath: '../labor-factory-seeds'
+	seedsRepoPath: '../labor-factory-seeds',
+	targetEnvironment: 'local',
+	stagingApiBaseUrl: '',
+	stagingApiTokenConfigured: false,
+	forceVersionMismatch: false
 };

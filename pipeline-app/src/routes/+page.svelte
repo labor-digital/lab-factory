@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { ArrowLeft } from 'lucide-svelte';
-	import type { PipelineConfig, StepEvent, Manifest, SeedTemplate, PhaseId, StepStatus, PhaseInfo } from '$lib/pipeline/types.js';
+	import type { PipelineConfig, StepEvent, Manifest, SeedTemplate, PhaseId, StepStatus, PhaseInfo, TargetEnvironment, VersionCompatResult } from '$lib/pipeline/types.js';
 	import { PHASES } from '$lib/pipeline/types.js';
 	import { DEFAULT_CONFIG } from '$lib/pipeline/config.js';
 	import { toastSuccess, toastError, toastInfo } from '$lib/toast.js';
 	import Banner from '$lib/components/Banner.svelte';
 	import ConfigForm from '$lib/components/ConfigForm.svelte';
+	import EnvironmentSelector from '$lib/components/EnvironmentSelector.svelte';
 	import PhaseCard from '$lib/components/PhaseCard.svelte';
 
 	interface StepData {
@@ -269,11 +270,25 @@
 				const data = await res.json();
 				bitbucketTokenConfigured = !!data.bitbucketTokenConfigured;
 				flyApiTokenConfigured = !!data.flyApiTokenConfigured;
+				config = { ...config, stagingApiTokenConfigured: !!data.stagingApiTokenConfigured };
 			}
 		} catch {
 			// ignore
 		}
 	});
+
+	// Selected seed's core_version, fed into the env selector for the version-compat badge.
+	let selectedSeedCoreVersion = $state('');
+	$effect(() => {
+		const tpl = templates.find((t) => t.slug === config.seedTemplate);
+		// SeedTemplate type doesn't expose core_version directly; the seed picker page
+		// passes it via the (TODO) /api/seeds payload. For now read what's available
+		// and fall back to empty — the badge will show "no core_version".
+		selectedSeedCoreVersion =
+			(tpl as unknown as { coreVersion?: string })?.coreVersion ?? '';
+	});
+
+	let lastCompat = $state<VersionCompatResult | null>(null);
 
 	// --- Derived ---
 	let passedCount = $derived(phases.filter((p) => p.status === 'passed').length);
@@ -291,13 +306,23 @@
 		const slug = (config.bitbucketRepoSlug.trim() || config.testProjectName).toLowerCase();
 		return `https://bitbucket.org/${config.bitbucketWorkspace}/${slug}`;
 	});
+	let stagingReady = $derived(
+		config.targetEnvironment !== 'staging' ||
+		(
+			config.stagingApiBaseUrl.trim().length > 0 &&
+			bitbucketTokenConfigured /* not required, but harmless guard */ &&
+			(lastCompat?.matches === true || config.forceVersionMismatch)
+		)
+	);
 	let canStart = $derived(
+		config.targetEnvironment !== 'prod' &&
 		(!config.includePhase3 || config.sudoPassword.trim().length > 0) &&
 		(!config.includePhase4 || (
 			bitbucketTokenConfigured &&
 			config.bitbucketWorkspace.trim().length > 0 &&
 			config.bitbucketProjectKey.trim().length > 0
-		))
+		)) &&
+		stagingReady
 	);
 </script>
 
@@ -313,6 +338,21 @@
 			<div class="max-w-4xl mx-auto px-4 py-8">
 				<Banner />
 
+				<div class="mb-4">
+					<EnvironmentSelector
+						target={config.targetEnvironment}
+						stagingApiBaseUrl={config.stagingApiBaseUrl}
+						stagingApiTokenConfigured={config.stagingApiTokenConfigured}
+						seedCoreVersion={selectedSeedCoreVersion}
+						forceVersionMismatch={config.forceVersionMismatch}
+						disabled={running}
+						onchange={(t: TargetEnvironment) => (config = { ...config, targetEnvironment: t })}
+						onbaseurl={(u) => (config = { ...config, stagingApiBaseUrl: u })}
+						oncompat={(r) => (lastCompat = r)}
+						onforcechange={(f) => (config = { ...config, forceVersionMismatch: f })}
+					/>
+				</div>
+
 				<div class="mb-6">
 					<ConfigForm {config} {manifest} {templates} {bitbucketTokenConfigured} {flyApiTokenConfigured} disabled={false} onchange={(c) => (config = c)} />
 				</div>
@@ -320,7 +360,13 @@
 				<div class="flex items-center justify-end gap-3">
 					{#if !canStart}
 						<span class="text-xs text-zinc-600">
-							{#if config.includePhase3 && config.sudoPassword.trim().length === 0}
+							{#if config.targetEnvironment === 'prod'}
+								Production target is disabled until 1.0
+							{:else if config.targetEnvironment === 'staging' && config.stagingApiBaseUrl.trim().length === 0}
+								Staging API base URL required
+							{:else if config.targetEnvironment === 'staging' && lastCompat && !lastCompat.matches && !config.forceVersionMismatch}
+								Version mismatch — bump factory-core in the deploy repo or force-override
+							{:else if config.includePhase3 && config.sudoPassword.trim().length === 0}
 								Sudo password required for Phase 3
 							{:else if config.includePhase4 && !bitbucketTokenConfigured}
 								BITBUCKET_TOKEN missing on server
