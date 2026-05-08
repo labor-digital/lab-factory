@@ -84,6 +84,76 @@ shared-tenant/
    instance doesn't bundle them). Point each tenant's frontend at
    `APP_DOMAIN` and its tenant slug's site.
 
+## End-to-end testing the multitenant API locally
+
+This fixture doubles as the local test bed for `factory-multitenant-api`
+(DL #013) and pipeline-app's staging-target flow (DL #015) — no DevOps
+staging required.
+
+What's already wired:
+- `factory-core/typo3-multitenant-api/` is mounted at
+  `/var/www/modules/typo3-multitenant-api` (docker-compose volume).
+- `src/composer.json` has the matching path repo + `@dev` require.
+- `FACTORY_MULTITENANT_API_ENABLED=true` and
+  `FACTORY_MULTITENANT_API_TOKEN=dev-multitenant-token` are set in the
+  app service's `environment:` block. The placeholder token is
+  intentional — the production deploy uses Secrets Manager (DL #013).
+
+To bring the stack up against the API:
+
+```bash
+cd shared-tenant/backend/app
+docker compose up -d --wait
+docker compose exec app composer install   # picks up factory-multitenant-api
+```
+
+Verify the API responds:
+
+```bash
+curl -k -H "Authorization: Bearer dev-multitenant-token" \
+  https://${APP_DOMAIN}/api/multitenant/version
+# expect: {"factory_core_version":"0.2.0","factory_multitenant_api_version":"0.1.1",...}
+```
+
+Without the bearer or with a wrong one → 401. With
+`FACTORY_MULTITENANT_API_ENABLED` unset → 404 (off-by-default).
+
+### Pointing pipeline-app at this fixture
+
+In `pipeline-app/.env`:
+
+```
+STAGING_API_TOKEN=dev-multitenant-token
+```
+
+Restart the dev server so SvelteKit re-reads the env. Then in the UI:
+
+1. Open `/seeds`, pick a seed whose `core_version` is `^0.2`
+   (the bootstrap example `example-modern-blue` already qualifies).
+2. Click "Use" → form pre-fills.
+3. In the form's environment selector, switch to **Staging**.
+4. Set the base URL to `https://${APP_DOMAIN}` (whatever you set in
+   `shared-tenant/backend/app/.env`).
+5. The version-compat badge should go green within ~1s.
+6. Click **Run Pipeline**. Pipeline-app skips Phases 0/3/4 and runs
+   the staging phase: `POST /tenants` → poll → (optional) `flyctl deploy`.
+
+The `flyctl deploy` step is skipped automatically when `FLY_API_TOKEN`
+is unset — the tenant still gets provisioned in TYPO3.
+
+### Tearing down a test tenant
+
+```bash
+# delete site config
+rm -rf src/config/sites/<slug>
+
+# delete root page + content
+docker compose exec app vendor/bin/typo3 factory:tenant:audit
+# follow audit findings to clean orphans, or DataHandler-delete the rootline
+```
+
+A `factory:tenant:retire` CLI is on the v2 backlog — for now manual.
+
 ## Auditing
 
 Run the defense-in-depth audit any time:

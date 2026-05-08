@@ -15,6 +15,13 @@
 		},
 		{
 			"type": "path",
+			"url": "../modules/typo3-multitenant-api",
+			"options": {
+				"symlink": true
+			}
+		},
+		{
+			"type": "path",
 			"url": "packages/client_sitepackage",
 			"options": {
 				"symlink": true
@@ -31,6 +38,7 @@
 		"friendsoftypo3/headless": "^v4.7.3",
 		"netzbewegung/nb-headless-content-blocks": "^0.0.21",
 		"labor-digital/factory-core": "@dev",
+		"labor-digital/factory-multitenant-api": "@dev",
 		"labor-digital/client-sitepackage": "@dev"
 	},
 	"extra": {

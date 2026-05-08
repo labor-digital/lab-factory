@@ -22,6 +22,12 @@ services:
       - .env
     environment:
       - 'APP_MYSQL_HOST=${COMPOSE_PROJECT_NAME}-mysql'
+      # Local-dev defaults for the multitenant API (DL #013/#015). The token is
+      # a stable placeholder so pipeline-app's STAGING_API_TOKEN can match it
+      # when targetEnvironment === 'staging' is pointed at this fixture.
+      # Production uses Secrets Manager — see DL #013, never commit a real token.
+      - 'FACTORY_MULTITENANT_API_ENABLED=true'
+      - 'FACTORY_MULTITENANT_API_TOKEN=dev-multitenant-token'
     volumes:
       - ${APP_SSH_DIR}:/home/ssh-labor/.ssh
       - ${APP_WORKING_DIR}:/var/www/html
@@ -33,6 +39,7 @@ services:
       - ${APP_OPT_DIR}/permissions.sh:/opt/project/permissions.sh
       - ${APP_ROOT_DIR}/.env.app:/opt/.env.app
       - ${APP_ROOT_DIR}factory-core/typo3-extension:/var/www/modules/typo3-extension
+      - ${APP_ROOT_DIR}factory-core/typo3-multitenant-api:/var/www/modules/typo3-multitenant-api
     volumes_from:
       - data
     healthcheck:
