@@ -1,0 +1,45 @@
+{
+	"name": "labor-digital/factory-multitenant-api",
+	"type": "typo3-cms-extension",
+	"description": "HTTP API for the LABOR.digital Factory shared-tenant TYPO3 — create tenants, update capabilities live, and report deployed factory-core version. Opt-in: only install on shared-tenant deployments. Off-by-default at runtime.",
+	"license": "GPL-2.0-or-later",
+	"version": "0.1.0",
+	"keywords": [
+		"typo3",
+		"typo3-cms",
+		"typo3-cms-extension",
+		"headless",
+		"factory",
+		"multi-tenant",
+		"api",
+		"labor-digital"
+	],
+	"authors": [
+		{
+			"name": "LABOR.digital",
+			"email": "info@labor.tools",
+			"homepage": "https://labor.digital",
+			"role": "Maintainer"
+		}
+	],
+	"homepage": "https://github.com/labor-digital/lab-factory/tree/main/factory-core/typo3-multitenant-api",
+	"support": {
+		"issues": "https://github.com/labor-digital/lab-factory/issues",
+		"source": "https://github.com/labor-digital/lab-factory"
+	},
+	"require": {
+		"php": "^8.4",
+		"typo3/cms-core": "^v13.4.27",
+		"labor-digital/factory-core": "^0.1"
+	},
+	"extra": {
+		"typo3/cms": {
+			"extension-key": "factory_multitenant_api"
+		}
+	},
+	"autoload": {
+		"psr-4": {
+			"LaborDigital\\FactoryMultitenantApi\\": "Classes/"
+		}
+	}
+}

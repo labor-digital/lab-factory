@@ -41,6 +41,25 @@ jobs:
           php -l ext_emconf.php
           php -l ext_localconf.php
 
+  typo3-multitenant-api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: factory-core/typo3-multitenant-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+      - name: composer validate
+        run: composer validate --strict --no-check-version
+      - name: PHP syntax check
+        run: |
+          find Classes -name "*.php" -print0 | xargs -0 -n1 php -l
+          php -l ext_emconf.php
+          find Configuration -name "*.php" -print0 | xargs -0 -n1 php -l
+
   pipeline-app:
     runs-on: ubuntu-latest
     defaults:

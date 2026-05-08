@@ -1,0 +1,55 @@
+name: Split factory-multitenant-api to mirror repo
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'factory-multitenant-api-v*'
+  workflow_dispatch:
+
+jobs:
+  split-branch:
+    if: startsWith(github.ref, 'refs/heads/')
+    name: Sync master branch to mirror
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: danharrin/monorepo-split-github-action@v2.3.0
+        with:
+          package_directory: 'factory-core/typo3-multitenant-api'
+          repository_organization: 'labor-digital'
+          repository_name: 'factory-multitenant-api'
+          branch: master
+          user_name: 'labor-digital-bot'
+          user_email: 'noreply@labor.digital'
+        env:
+          GITHUB_TOKEN: ${{ secrets.SUBTREE_SPLIT_TOKEN }}
+
+  split-tag:
+    if: startsWith(github.ref, 'refs/tags/factory-multitenant-api-v')
+    name: Mirror release tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute Packagist-friendly tag
+        id: tag
+        run: echo "name=${GITHUB_REF_NAME#factory-multitenant-api-}" >> "$GITHUB_OUTPUT"
+
+      - uses: danharrin/monorepo-split-github-action@v2.3.0
+        with:
+          tag: ${{ steps.tag.outputs.name }}
+          package_directory: 'factory-core/typo3-multitenant-api'
+          repository_organization: 'labor-digital'
+          repository_name: 'factory-multitenant-api'
+          branch: master
+          user_name: 'labor-digital-bot'
+          user_email: 'noreply@labor.digital'
+        env:
+          GITHUB_TOKEN: ${{ secrets.SUBTREE_SPLIT_TOKEN }}

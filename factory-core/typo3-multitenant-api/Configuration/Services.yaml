@@ -1,0 +1,14 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  LaborDigital\FactoryMultitenantApi\:
+    resource: '../Classes/*'
+
+  LaborDigital\FactoryMultitenantApi\Middleware\AuthenticationMiddleware:
+    public: true
+
+  LaborDigital\FactoryMultitenantApi\Middleware\ApiRouter:
+    public: true
