@@ -42,6 +42,83 @@ export interface SeedTemplate {
 	settings?: Partial<FactorySettings>;
 }
 
+/**
+ * Where a seed entry came from. `builtin` are the synthetic seeds that ship
+ * inside `factory-core/typo3-extension/SeedTemplates/` — safe to live in the
+ * public monorepo. `library` are AI/customer-derived seeds that live in the
+ * private `labor-factory-seeds` Bitbucket repo.
+ */
+export type SeedSource = 'builtin' | 'library';
+
+/**
+ * Origin metadata captured when a seed is added to the library. Helps the AI
+ * chain be accountable (which Figma frame, which prompt, which model).
+ */
+export interface SeedOrigin {
+	kind: 'figma' | 'ai-prompt' | 'manual' | 'builtin';
+	figmaUrl?: string;
+	prompt?: string;
+	model?: string;
+}
+
+/**
+ * One row in the unified seed picker (builtin + library combined). Surfaced
+ * by `GET /api/seeds`. The actual seed payload is loaded on demand from
+ * `payloadPath` (library) or built into the entry (builtin).
+ */
+export interface SeedLibraryEntry {
+	id: string;
+	name: string;
+	slug: string;
+	source: SeedSource;
+	description: string;
+	coreVersion: string;
+	components: string[];
+	recordTypes: string[];
+	settings?: Partial<FactorySettings>;
+	thumbnailPath?: string;
+	createdAt?: string;
+	lastUsedAt?: string;
+	origin: SeedOrigin;
+	/** Absolute path to the on-disk seed.json (library only). */
+	payloadPath?: string;
+}
+
+/**
+ * What gets persisted as the "currently applied" seed for a project. Used by
+ * `diffSeeds()` to decide between theming-only hot-swap and full DB reseed.
+ */
+export interface AppliedSeedSnapshot {
+	projectName: string;
+	seedSlug: string;
+	source: SeedSource;
+	activeComponents: string[];
+	activeRecordTypes: string[];
+	settings: Partial<FactorySettings>;
+	appliedAt: string;
+}
+
+/**
+ * Output of the seed diff. `mode` drives which reseed path runs;
+ * `reasons` is shown to the operator so the auto-decision is auditable.
+ */
+export interface SeedDiff {
+	mode: 'no-op' | 'theming-only' | 'db-reseed';
+	reasons: string[];
+}
+
+/**
+ * Body for `POST /api/reseed`. `force` lets the operator override the auto-
+ * detected mode (e.g. force `db-reseed` to clear stale demo content even
+ * when only theming changed).
+ */
+export interface ReseedRequest {
+	projectName: string;
+	seedSlug: string;
+	source: SeedSource;
+	force?: 'theming-only' | 'db-reseed' | null;
+}
+
 export type DeploymentMode = 'standalone' | 'shared-tenant';
 
 /**
@@ -155,6 +232,13 @@ export interface PipelineConfig {
 	flyIoRegion: string;
 	/** Fly.io machine size for the primary VM block in fly.toml. */
 	flyIoMachineSize: FlyIoMachineSize;
+	/**
+	 * Path to the private seeds repo (`labor-factory-seeds`). Sibling-clone
+	 * convention — see DL #014. When the path is missing, the seed picker
+	 * still lists builtin seeds and surfaces a banner. Never committed to
+	 * the public Factory monorepo.
+	 */
+	seedsRepoPath: string;
 }
 
 export interface StepEvent {

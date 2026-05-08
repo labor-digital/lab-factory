@@ -247,6 +247,22 @@
 			// ignore
 		}
 
+		// Pre-fill seed selection from /seeds picker (?seed=…&source=…)
+		try {
+			const params = new URLSearchParams(window.location.search);
+			const seedSlug = params.get('seed');
+			if (seedSlug) {
+				config = { ...config, seedTemplate: seedSlug };
+				toastInfo(`Selected seed: ${seedSlug}`);
+				const url = new URL(window.location.href);
+				url.searchParams.delete('seed');
+				url.searchParams.delete('source');
+				window.history.replaceState({}, '', url.toString());
+			}
+		} catch {
+			// ignore
+		}
+
 		try {
 			const res = await fetch('/api/pipeline');
 			if (res.ok) {
