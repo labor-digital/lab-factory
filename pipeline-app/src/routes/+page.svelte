@@ -312,7 +312,7 @@
 		config.targetEnvironment !== 'staging' ||
 		(
 			config.stagingApiBaseUrl.trim().length > 0 &&
-			bitbucketTokenConfigured /* not required, but harmless guard */ &&
+			config.stagingApiTokenConfigured &&
 			(lastCompat?.matches === true || config.forceVersionMismatch)
 		)
 	);
@@ -366,6 +366,8 @@
 								Production target is disabled until 1.0
 							{:else if config.targetEnvironment === 'staging' && config.stagingApiBaseUrl.trim().length === 0}
 								Staging API base URL required
+							{:else if config.targetEnvironment === 'staging' && !config.stagingApiTokenConfigured}
+								STAGING_API_TOKEN not set in pipeline-app/.env
 							{:else if config.targetEnvironment === 'staging' && lastCompat && !lastCompat.matches && !config.forceVersionMismatch}
 								Version mismatch — bump factory-core in the deploy repo or force-override
 							{:else if config.includePhase3 && config.sudoPassword.trim().length === 0}

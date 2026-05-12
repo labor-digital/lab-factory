@@ -1364,15 +1364,11 @@ export async function runPipeline(
 	}
 
 	try {
-		if (config.deploymentMode === 'shared-tenant') {
-			await sharedTenantPhase(config, emit, signal);
-			if (config.includePhase4) {
-				await publishTenantFrontendsPhase(config, projectRoot, emit, signal);
-			}
-			emit({ type: 'pipeline:done', timestamp: Date.now() });
-			return;
-		}
-
+		// Target environment takes precedence over deploymentMode. Picking
+		// `shared-tenant` for the form's tenants[] UI shouldn't bypass the
+		// staging POST when the operator explicitly chose Staging as the
+		// destination — staging is the live API, shared-tenant (local) is
+		// the legacy script-emitter flow.
 		if (config.targetEnvironment === 'prod') {
 			emit({
 				type: 'pipeline:error',
@@ -1382,15 +1378,27 @@ export async function runPipeline(
 			return;
 		}
 
-		await teardownPhase(config, projectRoot, projectDir, emit, signal);
-		await scaffoldPhase(config, projectRoot, projectDir, emit, signal);
-		await componentPhase(config, projectRoot, projectDir, emit, signal);
-
 		if (config.targetEnvironment === 'staging') {
+			await teardownPhase(config, projectRoot, projectDir, emit, signal);
+			await scaffoldPhase(config, projectRoot, projectDir, emit, signal);
+			await componentPhase(config, projectRoot, projectDir, emit, signal);
 			await stagingPhase(config, projectRoot, projectDir, emit, signal, flyApiToken);
 			emit({ type: 'pipeline:done', timestamp: Date.now() });
 			return;
 		}
+
+		if (config.deploymentMode === 'shared-tenant') {
+			await sharedTenantPhase(config, emit, signal);
+			if (config.includePhase4) {
+				await publishTenantFrontendsPhase(config, projectRoot, emit, signal);
+			}
+			emit({ type: 'pipeline:done', timestamp: Date.now() });
+			return;
+		}
+
+		await teardownPhase(config, projectRoot, projectDir, emit, signal);
+		await scaffoldPhase(config, projectRoot, projectDir, emit, signal);
+		await componentPhase(config, projectRoot, projectDir, emit, signal);
 
 		if (config.includePhase3) {
 			await dockerPhase(config, projectRoot, projectDir, emit, signal);
