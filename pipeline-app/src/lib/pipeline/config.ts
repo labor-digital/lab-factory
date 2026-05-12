@@ -49,7 +49,7 @@ export const DEFAULT_CONFIG: PipelineConfig = {
 	bitbucketRepoSlug: '',
 	publishBackend: true,
 	factoryCoreSource: 'local',
-	factoryCoreComposerConstraint: '^0.1',
+	factoryCoreComposerConstraint: '^0.2',
 	factoryCoreNpmConstraint: '^0.1.0',
 	deploymentMode: 'standalone',
 	sharedInstanceRepoPath: './shared-tenant/backend/app',

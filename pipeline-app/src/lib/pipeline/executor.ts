@@ -287,6 +287,20 @@ async function scaffoldPhase(
 
 	if (!ok) throw new Error('Scaffolding assertions failed');
 
+	// Always create the factory-core symlinks. lab-cli's factory:* commands
+	// resolve the component manifest via `<cwd>/../factory-core/manifest.json`,
+	// which only exists in the monorepo root — neither the published Composer
+	// extension nor the npm nuxt-layer ships it. The symlink coexists
+	// harmlessly with npm mode (where the actual application code is loaded
+	// from the published packages); lab-cli reads only manifest.json from it.
+	{
+		const stepId = 'scaffold-symlink';
+		emit({ type: 'step:start', stepId, data: 'Symlinking factory-core (lab-cli manifest lookup)', timestamp: Date.now() });
+		await forceSymlink(factoryCoreAbs, resolve(projectDir, 'backend/app/factory-core'));
+		await forceSymlink(factoryCoreAbs, resolve(projectDir, 'frontend/app/factory-core'));
+		emit({ type: 'step:pass', stepId, data: 'factory-core symlinked to backend + frontend', timestamp: Date.now() });
+	}
+
 	// Wire factory-core source: local path symlinks (internal dev) or
 	// published packages (real clients).
 	if (config.factoryCoreSource === 'npm') {
@@ -357,12 +371,6 @@ async function scaffoldPhase(
 			data: 'npm-source mode wired (composer + nuxt-layer set to published versions)',
 			timestamp: Date.now()
 		});
-	} else {
-		const stepId = 'scaffold-symlink';
-		emit({ type: 'step:start', stepId, data: 'Symlinking factory-core', timestamp: Date.now() });
-		await forceSymlink(factoryCoreAbs, resolve(projectDir, 'backend/app/factory-core'));
-		await forceSymlink(factoryCoreAbs, resolve(projectDir, 'frontend/app/factory-core'));
-		emit({ type: 'step:pass', stepId: 'scaffold-symlink', data: 'factory-core symlinked to backend + frontend', timestamp: Date.now() });
 	}
 
 	// Write settings to factory.json
