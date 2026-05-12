@@ -70,6 +70,13 @@ final class ApiRouter implements MiddlewareInterface
             return new JsonResponse(['error' => 'method_not_allowed'], 405);
         }
 
+        if (preg_match('#^/tenants/([a-z0-9][a-z0-9_-]*)/content$#', $remainder, $matches) === 1) {
+            if ($method === 'POST') {
+                return $this->tenant->seedContent($matches[1], $request);
+            }
+            return new JsonResponse(['error' => 'method_not_allowed'], 405);
+        }
+
         if (preg_match('#^/tenants/([a-z0-9][a-z0-9_-]*)$#', $remainder, $matches) === 1) {
             $slug = $matches[1];
             if ($method === 'GET') {
@@ -77,6 +84,9 @@ final class ApiRouter implements MiddlewareInterface
             }
             if ($method === 'PATCH') {
                 return $this->tenant->patch($slug, $request);
+            }
+            if ($method === 'DELETE') {
+                return $this->tenant->delete($slug);
             }
             return new JsonResponse(['error' => 'method_not_allowed'], 405);
         }

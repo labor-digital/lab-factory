@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace LaborDigital\FactoryMultitenantApi\Controller;
 
 use LaborDigital\FactoryCore\Command\TenantProvisionCommand;
+use LaborDigital\FactoryCore\Service\TenantContentSeeder;
+use LaborDigital\FactoryCore\Service\TenantRetirementService;
 use LaborDigital\FactoryMultitenantApi\Service\FactoryJsonWriter;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -25,6 +27,8 @@ final class TenantController
     public function __construct(
         private readonly TenantProvisionCommand $provisionCommand,
         private readonly FactoryJsonWriter $writer,
+        private readonly TenantContentSeeder $contentSeeder,
+        private readonly TenantRetirementService $retirement,
     ) {}
 
     public function list(): ResponseInterface
@@ -145,6 +149,56 @@ final class TenantController
             'settings' => $newState['settings'] ?? new \stdClass(),
             'applied_at' => gmdate('c'),
             'warning' => 'capability changes propagate to all instances within ~60s',
+        ]);
+    }
+
+    public function seedContent(string $slug, ServerRequestInterface $request): ResponseInterface
+    {
+        if (preg_match(self::SLUG_PATTERN, $slug) !== 1) {
+            return new JsonResponse(['error' => 'invalid_slug'], 400);
+        }
+        if ($this->writer->readSite($slug) === null) {
+            return new JsonResponse(['error' => 'tenant_not_found', 'slug' => $slug], 404);
+        }
+
+        $body = $this->decodeJsonBody($request);
+        if ($body === null) {
+            return new JsonResponse(['error' => 'invalid_json'], 400);
+        }
+        $elements = is_array($body['elements'] ?? null) ? $body['elements'] : [];
+        $wipe = !array_key_exists('wipe', $body) || (bool)$body['wipe'];
+
+        try {
+            $result = $this->contentSeeder->seed($slug, $elements, $wipe);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['error' => 'seed_failed', 'message' => $e->getMessage()], 500);
+        }
+
+        return new JsonResponse([
+            'slug' => $slug,
+            'status' => 'seeded',
+            'root_page_id' => $result['root_page_id'],
+            'seeded' => $result['seeded'],
+            'wiped' => $result['wiped'],
+        ]);
+    }
+
+    public function delete(string $slug): ResponseInterface
+    {
+        if (preg_match(self::SLUG_PATTERN, $slug) !== 1) {
+            return new JsonResponse(['error' => 'invalid_slug'], 400);
+        }
+
+        try {
+            $deleted = $this->retirement->retire($slug);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['error' => 'retire_failed', 'message' => $e->getMessage()], 500);
+        }
+
+        return new JsonResponse([
+            'slug' => $slug,
+            'status' => 'retired',
+            'deleted' => $deleted,
         ]);
     }
 
