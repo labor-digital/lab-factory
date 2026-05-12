@@ -798,13 +798,17 @@ async function stagingPhase(
 	projectDir: string,
 	emit: Emit,
 	signal: AbortSignal,
-	flyApiToken: string | null
+	flyApiToken: string | null,
+	stagingApiToken: string | null
 ): Promise<void> {
 	emit({ type: 'phase:start', phase: 4, phaseLabel: 'Staging Deploy', timestamp: Date.now() });
 	void projectRoot;
 
 	const baseUrl = config.stagingApiBaseUrl.trim();
-	const token = process.env.STAGING_API_TOKEN?.trim() ?? '';
+	// Read from the arg passed by /api/pipeline (which uses $env/dynamic/private,
+	// the SvelteKit canonical way). Reading process.env directly here was a bug —
+	// Vite/SvelteKit doesn't always populate process.env for vars in .env.
+	const token = (stagingApiToken ?? '').trim();
 
 	const validateId = 'staging-validate';
 	emit({ type: 'step:start', stepId: validateId, data: 'Validating staging config', timestamp: Date.now() });
@@ -1396,7 +1400,8 @@ export async function runPipeline(
 	emit: Emit,
 	signal: AbortSignal,
 	bitbucketToken: string | null = null,
-	flyApiToken: string | null = null
+	flyApiToken: string | null = null,
+	stagingApiToken: string | null = null
 ): Promise<void> {
 	const projectRoot = resolve(dirname(new URL(import.meta.url).pathname), '..', '..', '..', '..');
 	const projectDir = resolve(projectRoot, config.testProjectName);
@@ -1438,7 +1443,7 @@ export async function runPipeline(
 			await teardownPhase(config, projectRoot, projectDir, emit, signal);
 			await scaffoldPhase(config, projectRoot, projectDir, emit, signal);
 			await componentPhase(config, projectRoot, projectDir, emit, signal);
-			await stagingPhase(config, projectRoot, projectDir, emit, signal, flyApiToken);
+			await stagingPhase(config, projectRoot, projectDir, emit, signal, flyApiToken, stagingApiToken);
 			emit({ type: 'pipeline:done', timestamp: Date.now() });
 			return;
 		}

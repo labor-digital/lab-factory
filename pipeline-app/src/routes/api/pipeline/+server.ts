@@ -35,6 +35,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const config: PipelineConfig = await request.json();
 	const bitbucketToken = getBitbucketToken();
 	const flyApiToken = getFlyApiToken();
+	const stagingApiToken = getStagingApiToken();
 
 	if (config.includePhase4 && !bitbucketToken) {
 		return json({ error: 'BITBUCKET_TOKEN not set — add it to pipeline-app/.env and restart the dev server' }, { status: 400 });
@@ -65,7 +66,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				}
 			};
 
-			runPipeline(config, emit, controller.signal, bitbucketToken, flyApiToken).finally(() => {
+			runPipeline(config, emit, controller.signal, bitbucketToken, flyApiToken, stagingApiToken).finally(() => {
 				currentRun = null;
 				try {
 					streamController.close();
