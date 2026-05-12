@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.1.4...factory-multitenant-api-v0.1.5) (2026-05-12)
+
+
+### Bug Fixes
+
+* **factory-multitenant-api:** GET /tenants/{slug} includes status field ([18f2a7c](https://github.com/labor-digital/lab-factory/commit/18f2a7cfddca968332d55bc8fae1968f3d907c18))
+
 ## [0.1.4](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.1.3...factory-multitenant-api-v0.1.4) (2026-05-12)
 
 
