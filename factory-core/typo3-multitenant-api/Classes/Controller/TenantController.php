@@ -161,6 +161,11 @@ final class TenantController
 
         return [
             'slug' => $slug,
+            // Status is synthetic for v1: if the site config exists on disk,
+            // TenantProvisionCommand finished synchronously and the tenant is
+            // ready. The field exists so consumers (pipeline-app, future async
+            // pollers) can converge on a single response shape with POST.
+            'status' => 'ready',
             'domain' => $domain,
             'core_version' => $factory['core_version'] ?? '',
             'active_components' => $factory['active_components'] ?? [],
