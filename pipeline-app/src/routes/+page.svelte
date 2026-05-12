@@ -307,11 +307,12 @@
 
 	// --- Derived ---
 	let passedCount = $derived(phases.filter((p) => p.status === 'passed').length);
-	let totalPhases = $derived(3 + (config.includePhase3 ? 1 : 0) + (config.includePhase4 ? 1 : 0));
+	let phase4Visible = $derived(config.includePhase4 || config.targetEnvironment === 'staging');
+	let totalPhases = $derived(3 + (config.includePhase3 ? 1 : 0) + (phase4Visible ? 1 : 0));
 	let visiblePhases = $derived(
 		phases.filter((p) =>
 			(p.info.id !== 3 || config.includePhase3) &&
-			(p.info.id !== 4 || config.includePhase4)
+			(p.info.id !== 4 || phase4Visible)
 		)
 	);
 	let backendUrl = $derived(config.typo3ApiBaseUrl);
@@ -457,7 +458,13 @@
 				<!-- Phase cards -->
 				<div class="space-y-3">
 					{#each visiblePhases as phase}
-						<PhaseCard phase={phase.info} status={phase.status} steps={phase.steps} />
+						<PhaseCard
+							phase={phase.info.id === 4 && config.targetEnvironment === 'staging'
+								? { ...phase.info, label: 'Staging Deploy', icon: '🚀' }
+								: phase.info}
+							status={phase.status}
+							steps={phase.steps}
+						/>
 					{/each}
 				</div>
 
