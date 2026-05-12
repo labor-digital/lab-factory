@@ -94,6 +94,51 @@ export async function getTenant(baseUrl: string, token: string, slug: string): P
 	}
 }
 
+export interface SeedContentRequest {
+	elements: Array<{ component?: string; data?: Record<string, unknown> }>;
+	wipe?: boolean;
+}
+
+export async function seedTenantContent(
+	baseUrl: string,
+	token: string,
+	slug: string,
+	body: SeedContentRequest
+): Promise<unknown> {
+	const base = ensureBaseUrl(baseUrl);
+	const res = await fetch(`${base}/api/multitenant/tenants/${encodeURIComponent(slug)}/content`, {
+		method: 'POST',
+		headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+		body: JSON.stringify(body)
+	});
+	const text = await res.text();
+	if (!res.ok) {
+		throw new StagingApiError(`POST /tenants/${slug}/content returned ${res.status}: ${text}`, res.status);
+	}
+	try {
+		return JSON.parse(text);
+	} catch {
+		return { raw: text };
+	}
+}
+
+export async function deleteTenant(baseUrl: string, token: string, slug: string): Promise<unknown> {
+	const base = ensureBaseUrl(baseUrl);
+	const res = await fetch(`${base}/api/multitenant/tenants/${encodeURIComponent(slug)}`, {
+		method: 'DELETE',
+		headers: authHeaders(token)
+	});
+	const text = await res.text();
+	if (!res.ok) {
+		throw new StagingApiError(`DELETE /tenants/${slug} returned ${res.status}: ${text}`, res.status);
+	}
+	try {
+		return JSON.parse(text);
+	} catch {
+		return { raw: text };
+	}
+}
+
 interface CacheEntry {
 	at: number;
 	data: DeployedVersionInfo;

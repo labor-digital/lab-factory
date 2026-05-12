@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { rm, symlink, unlink, appendFile, stat, readFile, writeFile } from 'node:fs/promises';
+import { rm, symlink, unlink, appendFile, stat, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import type { PipelineConfig, StepEvent, PhaseId, TenantSpec } from './types.js';
 import { assertFileExists, assertJsonContains } from './assertions.js';
@@ -273,7 +273,7 @@ async function scaffoldPhase(
 			'--secret',
 			`APP_COOKIE_DOMAIN=${cookieDomain}`
 		],
-		projectRoot,
+		dirname(projectDir),
 		emit,
 		'scaffold-create',
 		signal
@@ -826,6 +826,37 @@ async function stagingPhase(
 	}
 	emit({ type: 'step:pass', stepId: validateId, data: `Target: ${baseUrl}`, timestamp: Date.now() });
 
+	// Update-mode branch: skip POST + content + poll. Operate on the
+	// explicitly-named existing tenant slug, running only the ops the
+	// operator checked. Compat check + scaffold (phases 1–2) already ran
+	// because the operator may have changed the seed and want a fresh
+	// frontend deploy with the new look.
+	if (config.operatingMode === 'update') {
+		await runStagingUpdateMode(config, projectDir, emit, signal, baseUrl, token, flyApiToken);
+		emit({ type: 'phase:end', phase: 4, timestamp: Date.now() });
+		return;
+	}
+
+	// Create-mode pre-step: optionally retire any existing tenant on this slug
+	// before re-creating. Useful for cleaning orphans without leaving the form.
+	const candidateSlug = (config.tenants[0]?.slug || config.bitbucketRepoSlug.trim() || config.testProjectName).toLowerCase();
+	if (config.retireFirst) {
+		const retireId = 'staging-retire-first';
+		emit({ type: 'step:start', stepId: retireId, data: `DELETE ${baseUrl}/api/multitenant/tenants/${candidateSlug}`, timestamp: Date.now() });
+		try {
+			const { deleteTenant } = await import('$lib/staging/api.js');
+			const r = await deleteTenant(baseUrl, token, candidateSlug);
+			emit({ type: 'step:output', stepId: retireId, data: JSON.stringify(r).slice(0, 300), timestamp: Date.now() });
+			emit({ type: 'step:pass', stepId: retireId, data: 'Retire-first complete', timestamp: Date.now() });
+		} catch (err) {
+			// DELETE is best-effort; missing tenant is a no-op upstream. Treat
+			// unexpected errors as informational, not fatal — the next POST will
+			// fail loudly if the state is still bad.
+			emit({ type: 'step:output', stepId: retireId, data: `retire-first non-fatal: ${(err as Error).message}`, timestamp: Date.now() });
+			emit({ type: 'step:pass', stepId: retireId, data: 'Retire-first skipped (non-fatal)', timestamp: Date.now() });
+		}
+	}
+
 	// Re-check version compat (defense in depth — the operator may have changed seed since the UI fetched).
 	const compatId = 'staging-version-compat';
 	emit({ type: 'step:start', stepId: compatId, data: `GET ${baseUrl}/api/multitenant/version`, timestamp: Date.now() });
@@ -833,7 +864,8 @@ async function stagingPhase(
 	const { evaluate } = await import('$lib/staging/versionCompat.js');
 	const factoryCoreAbs = resolve(projectRoot, config.factoryCorePath);
 	const seedsRepoAbs = resolve(projectRoot, config.seedsRepoPath);
-	const seedCoreVersion = await readSeedCoreVersion(factoryCoreAbs, seedsRepoAbs, config.seedTemplate);
+	const payload = await readSeedPayload(factoryCoreAbs, seedsRepoAbs, config.seedTemplate);
+	const seedCoreVersion = typeof payload?.core_version === 'string' ? payload.core_version : '';
 	const deployed = await fetchDeployedVersion(baseUrl, token);
 	const compat = evaluate(seedCoreVersion, deployed);
 	emit({ type: 'step:output', stepId: compatId, data: `seed=${seedCoreVersion} deployed=${deployed.factoryCoreVersion} match=${compat.matches}`, timestamp: Date.now() });
@@ -902,6 +934,30 @@ async function stagingPhase(
 		throw new Error('Tenant ready timeout');
 	}
 	emit({ type: 'step:pass', stepId: pollId, data: 'Tenant ready', timestamp: Date.now() });
+
+	// Seed content onto the newly provisioned tenant's root page. Without
+	// this the Nuxt frontend has nothing to render. The endpoint is
+	// idempotent (it wipes tt_content on the root page first), so re-runs
+	// are safe; pipeline-app calls it again in update-mode if the operator
+	// re-checks the "Re-seed content" box.
+	if (payload && Array.isArray(payload.elements) && payload.elements.length > 0) {
+		const seedContentId = 'staging-seed-content';
+		emit({ type: 'step:start', stepId: seedContentId, data: `POST ${baseUrl}/api/multitenant/tenants/${tenant.slug}/content (${payload.elements.length} elements)`, timestamp: Date.now() });
+		try {
+			const { seedTenantContent } = await import('$lib/staging/api.js');
+			const seedResult = await seedTenantContent(baseUrl, token, tenant.slug, {
+				elements: payload.elements as Array<{ component?: string; data?: Record<string, unknown> }>,
+				wipe: true
+			});
+			emit({ type: 'step:output', stepId: seedContentId, data: JSON.stringify(seedResult).slice(0, 300), timestamp: Date.now() });
+			emit({ type: 'step:pass', stepId: seedContentId, data: 'Content seeded', timestamp: Date.now() });
+		} catch (err) {
+			emit({ type: 'step:fail', stepId: seedContentId, data: (err as Error).message, timestamp: Date.now() });
+			throw err;
+		}
+	} else {
+		emit({ type: 'step:output', stepId: 'staging-seed-content-skip', data: 'No elements in seed payload — skipping content seed.', timestamp: Date.now() });
+	}
 
 	// flyctl deploy the frontend (idempotent — fly app may already exist).
 	if (!flyApiToken) {
@@ -992,18 +1048,184 @@ async function stagingPhase(
 	emit({ type: 'phase:end', phase: 4, timestamp: Date.now() });
 }
 
-async function readSeedCoreVersion(
+/**
+ * Update-mode for the staging path (DL #016). Skips POST /tenants + poll
+ * entirely. Operates on `config.existingTenantSlug` with whichever
+ * `config.updateOps` are checked. The frontend scaffold (phases 1–2)
+ * already ran so flyctl deploys the latest local artifacts; PATCH +
+ * content seed go through the staging API.
+ */
+async function runStagingUpdateMode(
+	config: PipelineConfig,
+	projectDir: string,
+	emit: Emit,
+	signal: AbortSignal,
+	baseUrl: string,
+	token: string,
+	flyApiToken: string | null
+): Promise<void> {
+	const slug = config.existingTenantSlug.trim().toLowerCase();
+	if (!slug) {
+		emit({ type: 'step:fail', stepId: 'staging-update-validate', data: 'existingTenantSlug is empty', timestamp: Date.now() });
+		throw new Error('existingTenantSlug is empty');
+	}
+
+	const { seedTenantContent, getTenant } = await import('$lib/staging/api.js');
+
+	if (config.updateOps.settings) {
+		const id = 'staging-update-settings';
+		emit({ type: 'step:start', stepId: id, data: `PATCH ${baseUrl}/api/multitenant/tenants/${slug}`, timestamp: Date.now() });
+		try {
+			const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/multitenant/tenants/${encodeURIComponent(slug)}`, {
+				method: 'PATCH',
+				headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					active_components: config.componentsToTest,
+					active_record_types: config.activeRecordTypes,
+					settings: config.settings
+				})
+			});
+			const text = await res.text();
+			if (!res.ok) {
+				emit({ type: 'step:fail', stepId: id, data: `PATCH returned ${res.status}: ${text}`, timestamp: Date.now() });
+				throw new Error(`PATCH /tenants/${slug} failed: ${res.status}`);
+			}
+			emit({ type: 'step:output', stepId: id, data: text.slice(0, 300), timestamp: Date.now() });
+			emit({ type: 'step:pass', stepId: id, data: 'Settings updated', timestamp: Date.now() });
+		} catch (err) {
+			emit({ type: 'step:fail', stepId: id, data: (err as Error).message, timestamp: Date.now() });
+			throw err;
+		}
+	}
+
+	if (config.updateOps.content) {
+		const id = 'staging-update-content';
+		// Confirm tenant exists first; content seed on a missing tenant returns 404.
+		const existing = await getTenant(baseUrl, token, slug);
+		if (!existing) {
+			emit({ type: 'step:fail', stepId: id, data: `Tenant "${slug}" not found on staging — create first.`, timestamp: Date.now() });
+			throw new Error('tenant_not_found');
+		}
+
+		// Load seed payload to get elements[].
+		const projectRoot = resolve(dirname(new URL(import.meta.url).pathname), '..', '..', '..', '..');
+		const factoryCoreAbs = resolve(projectRoot, config.factoryCorePath);
+		const seedsRepoAbs = resolve(projectRoot, config.seedsRepoPath);
+		const payload = await readSeedPayload(factoryCoreAbs, seedsRepoAbs, config.seedTemplate);
+		const elements = (payload?.elements ?? []) as Array<{ component?: string; data?: Record<string, unknown> }>;
+
+		emit({ type: 'step:start', stepId: id, data: `POST ${baseUrl}/api/multitenant/tenants/${slug}/content (${elements.length} elements)`, timestamp: Date.now() });
+		try {
+			const res = await seedTenantContent(baseUrl, token, slug, { elements, wipe: true });
+			emit({ type: 'step:output', stepId: id, data: JSON.stringify(res).slice(0, 300), timestamp: Date.now() });
+			emit({ type: 'step:pass', stepId: id, data: 'Content re-seeded', timestamp: Date.now() });
+		} catch (err) {
+			emit({ type: 'step:fail', stepId: id, data: (err as Error).message, timestamp: Date.now() });
+			throw err;
+		}
+	}
+
+	if (config.updateOps.redeploy) {
+		if (!flyApiToken) {
+			emit({ type: 'step:output', stepId: 'staging-update-redeploy-skip', data: 'FLY_API_TOKEN not set — skipping frontend redeploy.', timestamp: Date.now() });
+		} else {
+			await runFlyDeployForSlug(config, projectDir, slug, flyApiToken, emit, signal);
+		}
+	}
+
+	if (!config.updateOps.settings && !config.updateOps.content && !config.updateOps.redeploy) {
+		emit({ type: 'step:output', stepId: 'staging-update-noop', data: 'No update ops selected — nothing to do.', timestamp: Date.now() });
+	}
+}
+
+/**
+ * Three-step Fly.io deploy (apps create + secrets set + deploy) for an
+ * arbitrary slug. Factored out so update-mode redeploys can reuse the
+ * exact same pattern as create-mode without duplicating the spawn logic.
+ */
+async function runFlyDeployForSlug(
+	config: PipelineConfig,
+	projectDir: string,
+	slug: string,
+	flyApiToken: string,
+	emit: Emit,
+	signal: AbortSignal
+): Promise<void> {
+	const appName = slug + '-frontend';
+	const frontendDir = resolve(projectDir, 'frontend/app');
+	const flyEnv = { ...process.env, FLY_API_TOKEN: flyApiToken };
+
+	const createId = 'staging-fly-apps-create';
+	emit({ type: 'step:start', stepId: createId, data: `flyctl apps create ${appName} --org ${config.flyIoOrgSlug}`, timestamp: Date.now() });
+	await new Promise<void>((resolveFn, rejectFn) => {
+		if (signal.aborted) { rejectFn(new Error('Aborted')); return; }
+		const child = spawn('flyctl', ['apps', 'create', appName, '--org', config.flyIoOrgSlug], {
+			cwd: frontendDir, env: flyEnv, stdio: ['ignore', 'pipe', 'pipe'], signal
+		});
+		let stderr = '';
+		child.stdout.on('data', (c: Buffer) => emit({ type: 'step:output', stepId: createId, data: c.toString(), timestamp: Date.now() }));
+		child.stderr.on('data', (c: Buffer) => { stderr += c.toString(); emit({ type: 'step:output', stepId: createId, data: c.toString(), timestamp: Date.now() }); });
+		child.on('error', rejectFn);
+		child.on('close', (code: number | null) => {
+			if (code === 0) { emit({ type: 'step:pass', stepId: createId, data: `App created: ${appName}`, timestamp: Date.now() }); resolveFn(); return; }
+			if (/Name .* already|already exists|already taken/i.test(stderr)) {
+				emit({ type: 'step:pass', stepId: createId, data: `App ${appName} already exists — continuing`, timestamp: Date.now() });
+				resolveFn(); return;
+			}
+			emit({ type: 'step:fail', stepId: createId, data: `flyctl apps create failed (exit ${code}): ${stderr.slice(0, 300)}`, timestamp: Date.now() });
+			rejectFn(new Error(`flyctl apps create failed: ${stderr.slice(0, 300)}`));
+		});
+	});
+
+	const secretsId = 'staging-fly-secrets-set';
+	emit({ type: 'step:start', stepId: secretsId, data: `flyctl secrets set TYPO3_API_BASE_URL=<redacted> --app ${appName}`, timestamp: Date.now() });
+	await new Promise<void>((resolveFn, rejectFn) => {
+		if (signal.aborted) { rejectFn(new Error('Aborted')); return; }
+		const child = spawn('flyctl', ['secrets', 'set', `TYPO3_API_BASE_URL=${config.typo3ApiBaseUrl}`, '--app', appName, '--stage'], {
+			cwd: frontendDir, env: flyEnv, stdio: ['ignore', 'pipe', 'pipe'], signal
+		});
+		let stderr = '';
+		child.stderr.on('data', (c: Buffer) => { stderr += c.toString(); });
+		child.on('error', rejectFn);
+		child.on('close', (code: number | null) => {
+			if (code === 0) { emit({ type: 'step:pass', stepId: secretsId, data: 'Secrets staged', timestamp: Date.now() }); resolveFn(); return; }
+			emit({ type: 'step:fail', stepId: secretsId, data: `flyctl secrets set failed (exit ${code}): ${stderr.slice(0, 200)}`, timestamp: Date.now() });
+			rejectFn(new Error(`flyctl secrets set failed: ${stderr.slice(0, 300)}`));
+		});
+	});
+
+	const flyId = 'staging-fly-deploy';
+	emit({ type: 'step:start', stepId: flyId, data: `flyctl deploy --remote-only --app ${appName}`, timestamp: Date.now() });
+	await new Promise<void>((resolveFn, rejectFn) => {
+		if (signal.aborted) { rejectFn(new Error('Aborted')); return; }
+		const child = spawn('flyctl', ['deploy', '--remote-only', '--app', appName], {
+			cwd: frontendDir, env: flyEnv, stdio: ['ignore', 'pipe', 'pipe'], signal
+		});
+		let stderr = '';
+		child.stdout.on('data', (c: Buffer) => emit({ type: 'step:output', stepId: flyId, data: c.toString(), timestamp: Date.now() }));
+		child.stderr.on('data', (c: Buffer) => { stderr += c.toString(); emit({ type: 'step:output', stepId: flyId, data: c.toString(), timestamp: Date.now() }); });
+		child.on('error', rejectFn);
+		child.on('close', (code: number | null) => {
+			if (code === 0) { emit({ type: 'step:pass', stepId: flyId, data: `Frontend deployed at https://${appName}.fly.dev`, timestamp: Date.now() }); resolveFn(); return; }
+			emit({ type: 'step:fail', stepId: flyId, data: `flyctl deploy exited ${code}: ${stderr.slice(0, 300)}`, timestamp: Date.now() });
+			rejectFn(new Error(`flyctl deploy failed: ${stderr.slice(0, 300)}`));
+		});
+	});
+}
+
+/**
+ * Reads the full seed JSON (the on-disk source of truth — not the
+ * scaffolded factory.json, which inherits a hardcoded `core_version` from
+ * the template). Returns the parsed object so callers can extract
+ * `core_version` for the staging compat check AND `elements` for the
+ * content-seed POST without two filesystem reads.
+ */
+async function readSeedPayload(
 	factoryCoreAbs: string,
 	seedsRepoAbs: string,
 	seedTemplate: string
-): Promise<string> {
-	if (!seedTemplate) return '';
-	// Read from the seed template itself rather than the scaffolded
-	// factory.json — the latter inherits its core_version from the public
-	// frontend template (hardcoded "1.0.0"), which would always fail the
-	// staging compat check. The seed is the contract; the scaffold is a
-	// derivative. Check builtin first, then library (matches the seed
-	// store's combined listing order).
+): Promise<Record<string, unknown> | null> {
+	if (!seedTemplate) return null;
 	const candidates = [
 		resolve(factoryCoreAbs, 'typo3-extension', 'SeedTemplates', `${seedTemplate}.json`),
 		resolve(seedsRepoAbs, 'seeds', seedTemplate, 'seed.json')
@@ -1011,14 +1233,14 @@ async function readSeedCoreVersion(
 	for (const path of candidates) {
 		try {
 			const json = JSON.parse(await readFile(path, 'utf-8'));
-			if (typeof json.core_version === 'string' && json.core_version.length > 0) {
-				return json.core_version;
+			if (typeof json === 'object' && json !== null) {
+				return json;
 			}
 		} catch {
 			// try the next candidate
 		}
 	}
-	return '';
+	return null;
 }
 
 function deriveDomain(config: PipelineConfig): string {
@@ -1404,7 +1626,9 @@ export async function runPipeline(
 	stagingApiToken: string | null = null
 ): Promise<void> {
 	const projectRoot = resolve(dirname(new URL(import.meta.url).pathname), '..', '..', '..', '..');
-	const projectDir = resolve(projectRoot, config.testProjectName);
+	const projectsRoot = resolve(projectRoot, 'projects');
+	const projectDir = resolve(projectsRoot, config.testProjectName);
+	await mkdir(projectsRoot, { recursive: true });
 
 	// When a seed template is selected, ensure all its components AND record
 	// types are in the config (in case the user changed selection manually).

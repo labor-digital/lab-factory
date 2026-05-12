@@ -64,5 +64,13 @@ export const DEFAULT_CONFIG: PipelineConfig = {
 	targetEnvironment: 'local',
 	stagingApiBaseUrl: 'https://lab-fac-mul.labor.show',
 	stagingApiTokenConfigured: false,
-	forceVersionMismatch: false
+	forceVersionMismatch: false,
+	operatingMode: 'create',
+	existingTenantSlug: '',
+	updateOps: {
+		settings: false,
+		content: true,
+		redeploy: true
+	},
+	retireFirst: false
 };

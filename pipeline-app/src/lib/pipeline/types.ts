@@ -297,6 +297,22 @@ export interface PipelineConfig {
 	stagingApiTokenConfigured: boolean;
 	/** When true, allow a staging run despite a version mismatch (tagged in the SSE log). */
 	forceVersionMismatch: boolean;
+	/**
+	 * Operating mode for the staging path (DL #016).
+	 * `create` — provision a new tenant (POST + content + fly deploy).
+	 * `update` — operate on an existing tenant; pick from `updateOps`.
+	 */
+	operatingMode: 'create' | 'update';
+	/** When `operatingMode === 'update'`, the slug to operate on. */
+	existingTenantSlug: string;
+	/** Per-operation toggles in update mode. */
+	updateOps: {
+		settings: boolean;
+		content: boolean;
+		redeploy: boolean;
+	};
+	/** When create-mode + true, call DELETE /tenants/{slug} before POST. Cleans orphans without leaving the form. */
+	retireFirst: boolean;
 }
 
 export interface StepEvent {

@@ -361,11 +361,19 @@
 						stagingApiTokenConfigured={config.stagingApiTokenConfigured}
 						seedCoreVersion={selectedSeedCoreVersion}
 						forceVersionMismatch={config.forceVersionMismatch}
+						operatingMode={config.operatingMode}
+						existingTenantSlug={config.existingTenantSlug}
+						updateOps={config.updateOps}
+						retireFirst={config.retireFirst}
 						disabled={running}
 						onchange={(t: TargetEnvironment) => (config = { ...config, targetEnvironment: t })}
 						onbaseurl={(u) => (config = { ...config, stagingApiBaseUrl: u })}
 						oncompat={(r) => (lastCompat = r)}
 						onforcechange={(f) => (config = { ...config, forceVersionMismatch: f })}
+						onmodechange={(m) => (config = { ...config, operatingMode: m })}
+						onslugchange={(s) => (config = { ...config, existingTenantSlug: s })}
+						onopschange={(o) => (config = { ...config, updateOps: o })}
+						onretireFirstChange={(v) => (config = { ...config, retireFirst: v })}
 					/>
 				</div>
 
