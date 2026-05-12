@@ -1,5 +1,5 @@
 {
   "factory-core/nuxt-layer": "0.1.2",
-  "factory-core/typo3-extension": "0.3.2",
-  "factory-core/typo3-multitenant-api": "0.1.5"
+  "factory-core/typo3-extension": "0.4.0",
+  "factory-core/typo3-multitenant-api": "0.2.0"
 }
