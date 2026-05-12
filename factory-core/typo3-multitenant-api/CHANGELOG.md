@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.1.5...factory-multitenant-api-v0.2.0) (2026-05-12)
+
+
+### Features
+
+* **factory-core,factory-multitenant-api:** tenant lifecycle — content seed + retire (DL [#016](https://github.com/labor-digital/lab-factory/issues/016)) ([cc1d33b](https://github.com/labor-digital/lab-factory/commit/cc1d33bdbd8571e5fa553fbc5045ad83f7adb37c))
+
 ## [0.1.5](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.1.4...factory-multitenant-api-v0.1.5) (2026-05-12)
 
 
