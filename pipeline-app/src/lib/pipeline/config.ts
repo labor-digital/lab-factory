@@ -62,7 +62,7 @@ export const DEFAULT_CONFIG: PipelineConfig = {
 	flyIoMachineSize: 'shared-cpu-1x-512',
 	seedsRepoPath: '../labor-factory-seeds',
 	targetEnvironment: 'local',
-	stagingApiBaseUrl: '',
+	stagingApiBaseUrl: 'https://lab-fac-mul.labor.show',
 	stagingApiTokenConfigured: false,
 	forceVersionMismatch: false
 };
