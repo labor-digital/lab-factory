@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.1.1...factory-multitenant-api-v0.1.2) (2026-05-12)
+
+
+### Bug Fixes
+
+* **factory-multitenant-api:** use correct TYPO3 13 middleware identifier ([bd77eb1](https://github.com/labor-digital/lab-factory/commit/bd77eb1abda6de2ffdcd098997f59b4ec9bf32f9))
+
 ## [0.1.1](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.1.0...factory-multitenant-api-v0.1.1) (2026-05-08)
 
 
