@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.1.2...factory-multitenant-api-v0.1.3) (2026-05-12)
+
+
+### Bug Fixes
+
+* **factory-multitenant-api:** fall back to REDIRECT_HTTP_AUTHORIZATION + apache_request_headers ([928dccd](https://github.com/labor-digital/lab-factory/commit/928dccde0a202f13a7d5c4b4aeb1c152de5caa07))
+
 ## [0.1.2](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.1.1...factory-multitenant-api-v0.1.2) (2026-05-12)
 
 
