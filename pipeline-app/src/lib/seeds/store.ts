@@ -4,7 +4,8 @@ import type {
 	SeedLibraryEntry,
 	SeedOrigin,
 	SeedSource,
-	FactorySettings
+	FactorySettings,
+	TenantSpec
 } from '$lib/pipeline/types.js';
 
 /**
@@ -47,6 +48,7 @@ interface SeedMetaJson {
 	createdAt?: string;
 	thumbnail?: string;
 	source?: SeedOrigin;
+	suggestedTenants?: TenantSpec[];
 }
 
 export interface SeedListResult {
@@ -195,6 +197,7 @@ function libraryEntry(
 		thumbnailPath: meta.thumbnail ? resolve(dir, meta.thumbnail) : undefined,
 		createdAt: meta.createdAt,
 		origin: meta.source ?? { kind: 'manual' },
+		suggestedTenants: Array.isArray(meta.suggestedTenants) ? meta.suggestedTenants : undefined,
 		payloadPath: resolve(dir, 'seed.json')
 	};
 }

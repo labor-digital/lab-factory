@@ -275,26 +275,29 @@
 							<p class="text-[10px] text-zinc-600">docker-compose service name for <code class="bg-zinc-800 px-1 rounded">exec</code>.</p>
 						</div>
 					</div>
-					<div class="space-y-1">
-						<label for="tenantsJson" class="text-xs text-zinc-400 uppercase tracking-wider">Tenants (JSON)</label>
-						<textarea
-							id="tenantsJson"
-							value={JSON.stringify(config.tenants, null, 2)}
-							oninput={(e) => {
-								try {
-									const parsed = JSON.parse(e.currentTarget.value);
-									if (Array.isArray(parsed)) update('tenants', parsed);
-								} catch {
-									/* ignore — wait for valid JSON */
-								}
-							}}
-							{disabled}
-							rows={10}
-							placeholder={'[\n  {\n    "slug": "acme",\n    "domain": "acme.example.com",\n    "displayName": "ACME GmbH",\n    "activeComponents": ["PageHero", "Text"],\n    "activeRecordTypes": [],\n    "adminEmail": "ops@acme.example.com"\n  }\n]'}
-							class="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-cyan-500 disabled:opacity-50 font-mono"
-						></textarea>
-						<p class="text-[10px] text-zinc-600">One entry per site. A client owning multiple sites lists them all here — they share the initial admin user.</p>
-					</div>
+				</div>
+			{/if}
+
+			{#if config.deploymentMode === 'shared-tenant' || config.targetEnvironment === 'staging'}
+				<div class="space-y-1">
+					<label for="tenantsJson" class="text-xs text-zinc-400 uppercase tracking-wider">Tenants (JSON)</label>
+					<textarea
+						id="tenantsJson"
+						value={JSON.stringify(config.tenants, null, 2)}
+						oninput={(e) => {
+							try {
+								const parsed = JSON.parse(e.currentTarget.value);
+								if (Array.isArray(parsed)) update('tenants', parsed);
+							} catch {
+								/* ignore — wait for valid JSON */
+							}
+						}}
+						{disabled}
+						rows={10}
+						placeholder={'[\n  {\n    "slug": "acme",\n    "domain": "acme.example.com",\n    "displayName": "ACME GmbH",\n    "activeComponents": ["PageHero", "Text"],\n    "activeRecordTypes": [],\n    "adminEmail": "ops@acme.example.com"\n  }\n]'}
+						class="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-cyan-500 disabled:opacity-50 font-mono"
+					></textarea>
+					<p class="text-[10px] text-zinc-600">One entry per site. Picking a seed pre-fills this from its <code class="bg-zinc-800 px-1 rounded">meta.json</code> <code class="bg-zinc-800 px-1 rounded">suggestedTenants</code> — edit, add more, or paste your own.</p>
 				</div>
 			{/if}
 
@@ -414,7 +417,7 @@
 				</div>
 			{/if}
 
-			{#if config.includePhase4 && !config.publishBackend && config.deploymentMode === 'standalone'}
+			{#if (config.includePhase4 && !config.publishBackend && config.deploymentMode === 'standalone') || config.targetEnvironment === 'staging'}
 				<div>
 					<p class="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Frontend Hosting</p>
 					<div class="space-y-3">

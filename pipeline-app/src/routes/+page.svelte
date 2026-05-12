@@ -255,12 +255,25 @@
 		}
 
 		// Pre-fill seed selection from /seeds picker (?seed=…&source=…)
+		// Also pre-fill tenants[] from the seed's meta.json.suggestedTenants — the
+		// operator can edit / add more in the form. This avoids manual JSON paste
+		// for the common one-tenant case and gracefully handles multi-tenant seeds.
 		try {
 			const params = new URLSearchParams(window.location.search);
 			const seedSlug = params.get('seed');
 			if (seedSlug) {
-				config = { ...config, seedTemplate: seedSlug };
-				toastInfo(`Selected seed: ${seedSlug}`);
+				const tpl = templates.find((t) => t.slug === seedSlug);
+				const patch: Partial<PipelineConfig> = { seedTemplate: seedSlug };
+				if (tpl?.suggestedTenants && tpl.suggestedTenants.length > 0) {
+					patch.tenants = tpl.suggestedTenants;
+					// The tenants[] UI is gated by deploymentMode===shared-tenant
+					// OR targetEnvironment===staging. Bias to staging since that's
+					// the path this picker is built for; the operator can swap
+					// back to standalone if they want a local-only scaffold.
+					patch.targetEnvironment = 'staging';
+				}
+				config = { ...config, ...patch };
+				toastInfo(`Selected seed: ${seedSlug}${tpl?.suggestedTenants?.length ? ` (+${tpl.suggestedTenants.length} tenant${tpl.suggestedTenants.length === 1 ? '' : 's'})` : ''}`);
 				const url = new URL(window.location.href);
 				url.searchParams.delete('seed');
 				url.searchParams.delete('source');

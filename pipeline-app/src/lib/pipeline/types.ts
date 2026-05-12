@@ -44,6 +44,8 @@ export interface SeedTemplate {
 	coreVersion?: string;
 	/** "builtin" (ships with factory-core) or "library" (private seed repo). Populated by /api/seeds; unset by the legacy /api/templates response. */
 	source?: SeedSource;
+	/** From meta.json.suggestedTenants — pipeline-app pre-fills tenants[] when this seed is picked. */
+	suggestedTenants?: TenantSpec[];
 }
 
 /**
@@ -84,6 +86,14 @@ export interface SeedLibraryEntry {
 	createdAt?: string;
 	lastUsedAt?: string;
 	origin: SeedOrigin;
+	/**
+	 * Tenants this seed naturally maps to (from meta.json.suggestedTenants).
+	 * Pipeline-app pre-fills its `tenants[]` field from this when the operator
+	 * picks the seed. Operator can then edit / extend in the form before
+	 * running. One entry is the typical case; multi-brand or multilingual
+	 * clients can list several.
+	 */
+	suggestedTenants?: TenantSpec[];
 	/** Absolute path to the on-disk seed.json (library only). */
 	payloadPath?: string;
 }
