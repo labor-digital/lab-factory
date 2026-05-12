@@ -79,7 +79,7 @@ Zero new utilities. All of:
 1. TYPO3 Content Block: `config.yaml`, `SeedData.yaml`, `DESIGNER_BRIEF.md`, `templates/Frontend.html` (headless stub).
 2. Nuxt layer: `BaseTextSlider.vue` + `TextSlider.vue` under `components/T3/Content/`.
 3. `manifest.json` — add `TextSlider` entry (v1.0.0, npm deps: Splide + Iconify).
-4. `SeedTemplates/heckelsmueller.json` — append a Referenzen text-slider demo (3 image slides, left-aligned, trailing-arrow "Alle anzeigen" link button).
+4. `SeedTemplates/heckelsmueller.json` — append a Referenzen text-slider demo (3 image slides, left-aligned, trailing-arrow "Alle anzeigen" link button). *(2026-05-12: the heckelsmueller seed was migrated out of the public builtins into the private `labor-factory-seeds` library — see DL #014 for the split convention.)*
 5. Playground story under `factory-core/playground/stories/`.
 
 ## Examples
