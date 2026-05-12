@@ -40,6 +40,10 @@ export interface SeedTemplate {
 	components: string[];
 	recordTypes?: string[];
 	settings?: Partial<FactorySettings>;
+	/** Composer-style range, e.g. "^0.2". Populated when the seed declares one (library seeds always do; older builtins may not). */
+	coreVersion?: string;
+	/** "builtin" (ships with factory-core) or "library" (private seed repo). Populated by /api/seeds; unset by the legacy /api/templates response. */
+	source?: SeedSource;
 }
 
 /**

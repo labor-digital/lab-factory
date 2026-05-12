@@ -242,8 +242,14 @@
 		}
 
 		try {
-			const res = await fetch('/api/templates');
-			if (res.ok) templates = await res.json();
+			// /api/seeds returns the unified list (builtin + library, source-tagged).
+			// We assign it directly into `templates` — SeedLibraryEntry is a
+			// structural superset of SeedTemplate, so the picker + form just work.
+			const res = await fetch('/api/seeds');
+			if (res.ok) {
+				const data = await res.json();
+				templates = Array.isArray(data?.entries) ? data.entries : [];
+			}
 		} catch {
 			// ignore
 		}
@@ -281,11 +287,7 @@
 	let selectedSeedCoreVersion = $state('');
 	$effect(() => {
 		const tpl = templates.find((t) => t.slug === config.seedTemplate);
-		// SeedTemplate type doesn't expose core_version directly; the seed picker page
-		// passes it via the (TODO) /api/seeds payload. For now read what's available
-		// and fall back to empty — the badge will show "no core_version".
-		selectedSeedCoreVersion =
-			(tpl as unknown as { coreVersion?: string })?.coreVersion ?? '';
+		selectedSeedCoreVersion = tpl?.coreVersion ?? '';
 	});
 
 	let lastCompat = $state<VersionCompatResult | null>(null);
