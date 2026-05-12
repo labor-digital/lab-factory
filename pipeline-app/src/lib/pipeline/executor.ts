@@ -819,7 +819,9 @@ async function stagingPhase(
 	emit({ type: 'step:start', stepId: compatId, data: `GET ${baseUrl}/api/multitenant/version`, timestamp: Date.now() });
 	const { fetchDeployedVersion } = await import('$lib/staging/api.js');
 	const { evaluate } = await import('$lib/staging/versionCompat.js');
-	const seedCoreVersion = await readSeedCoreVersion(projectDir, config.seedTemplate);
+	const factoryCoreAbs = resolve(projectRoot, config.factoryCorePath);
+	const seedsRepoAbs = resolve(projectRoot, config.seedsRepoPath);
+	const seedCoreVersion = await readSeedCoreVersion(factoryCoreAbs, seedsRepoAbs, config.seedTemplate);
 	const deployed = await fetchDeployedVersion(baseUrl, token);
 	const compat = evaluate(seedCoreVersion, deployed);
 	emit({ type: 'step:output', stepId: compatId, data: `seed=${seedCoreVersion} deployed=${deployed.factoryCoreVersion} match=${compat.matches}`, timestamp: Date.now() });
@@ -930,15 +932,33 @@ async function stagingPhase(
 	emit({ type: 'phase:end', phase: 4, timestamp: Date.now() });
 }
 
-async function readSeedCoreVersion(projectDir: string, seedTemplate: string): Promise<string> {
+async function readSeedCoreVersion(
+	factoryCoreAbs: string,
+	seedsRepoAbs: string,
+	seedTemplate: string
+): Promise<string> {
 	if (!seedTemplate) return '';
-	try {
-		const path = resolve(projectDir, 'frontend/app/src/factory.json');
-		const json = JSON.parse(await readFile(path, 'utf-8'));
-		return typeof json.core_version === 'string' ? json.core_version : '';
-	} catch {
-		return '';
+	// Read from the seed template itself rather than the scaffolded
+	// factory.json — the latter inherits its core_version from the public
+	// frontend template (hardcoded "1.0.0"), which would always fail the
+	// staging compat check. The seed is the contract; the scaffold is a
+	// derivative. Check builtin first, then library (matches the seed
+	// store's combined listing order).
+	const candidates = [
+		resolve(factoryCoreAbs, 'typo3-extension', 'SeedTemplates', `${seedTemplate}.json`),
+		resolve(seedsRepoAbs, 'seeds', seedTemplate, 'seed.json')
+	];
+	for (const path of candidates) {
+		try {
+			const json = JSON.parse(await readFile(path, 'utf-8'));
+			if (typeof json.core_version === 'string' && json.core_version.length > 0) {
+				return json.core_version;
+			}
+		} catch {
+			// try the next candidate
+		}
 	}
+	return '';
 }
 
 function deriveDomain(config: PipelineConfig): string {
