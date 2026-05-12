@@ -896,9 +896,57 @@ async function stagingPhase(
 		emit({ type: 'step:output', stepId: 'staging-fly-skip', data: 'FLY_API_TOKEN not set — skipping frontend deploy.', timestamp: Date.now() });
 		return;
 	}
-	const flyId = 'staging-fly-deploy';
 	const appName = tenant.slug + '-frontend';
 	const frontendDir = resolve(projectDir, 'frontend/app');
+	const flyEnv = { ...process.env, FLY_API_TOKEN: flyApiToken };
+
+	// Step S-fly-create: idempotent — succeeds whether the app already exists or not.
+	const createId = 'staging-fly-apps-create';
+	emit({ type: 'step:start', stepId: createId, data: `flyctl apps create ${appName} --org ${config.flyIoOrgSlug}`, timestamp: Date.now() });
+	await new Promise<void>((resolveFn, rejectFn) => {
+		if (signal.aborted) { rejectFn(new Error('Aborted')); return; }
+		const child = spawn('flyctl', ['apps', 'create', appName, '--org', config.flyIoOrgSlug], {
+			cwd: frontendDir, env: flyEnv, stdio: ['ignore', 'pipe', 'pipe'], signal
+		});
+		let stderr = '';
+		child.stdout.on('data', (c: Buffer) => emit({ type: 'step:output', stepId: createId, data: c.toString(), timestamp: Date.now() }));
+		child.stderr.on('data', (c: Buffer) => { stderr += c.toString(); emit({ type: 'step:output', stepId: createId, data: c.toString(), timestamp: Date.now() }); });
+		child.on('error', rejectFn);
+		child.on('close', (code: number | null) => {
+			if (code === 0) { emit({ type: 'step:pass', stepId: createId, data: `App created: ${appName}`, timestamp: Date.now() }); resolveFn(); return; }
+			if (/Name .* already|already exists|already taken/i.test(stderr)) {
+				emit({ type: 'step:pass', stepId: createId, data: `App ${appName} already exists — continuing`, timestamp: Date.now() });
+				resolveFn(); return;
+			}
+			emit({ type: 'step:fail', stepId: createId, data: `flyctl apps create failed (exit ${code}): ${stderr.slice(0, 300)}`, timestamp: Date.now() });
+			rejectFn(new Error(`flyctl apps create failed: ${stderr.slice(0, 300)}`));
+		});
+	});
+
+	// Step S-fly-secrets: stage runtime env. Critical — the Nuxt frontend needs to
+	// know where to fetch TYPO3 content from. Without this, the deployed app boots
+	// but returns 500 on every request. `--stage` defers the apply until the next
+	// deploy (which is the next step), so we don't trigger an extra restart.
+	const secretsId = 'staging-fly-secrets-set';
+	emit({ type: 'step:start', stepId: secretsId, data: `flyctl secrets set TYPO3_API_BASE_URL=<redacted> --app ${appName}`, timestamp: Date.now() });
+	await new Promise<void>((resolveFn, rejectFn) => {
+		if (signal.aborted) { rejectFn(new Error('Aborted')); return; }
+		const child = spawn('flyctl', ['secrets', 'set', `TYPO3_API_BASE_URL=${config.typo3ApiBaseUrl}`, '--app', appName, '--stage'], {
+			cwd: frontendDir, env: flyEnv, stdio: ['ignore', 'pipe', 'pipe'], signal
+		});
+		let stderr = '';
+		child.stderr.on('data', (c: Buffer) => { stderr += c.toString(); });
+		child.on('error', rejectFn);
+		child.on('close', (code: number | null) => {
+			if (code === 0) { emit({ type: 'step:pass', stepId: secretsId, data: 'Secrets staged (applied on next deploy)', timestamp: Date.now() }); resolveFn(); return; }
+			emit({ type: 'step:fail', stepId: secretsId, data: `flyctl secrets set failed (exit ${code}): ${stderr.slice(0, 200)}`, timestamp: Date.now() });
+			rejectFn(new Error(`flyctl secrets set failed: ${stderr.slice(0, 300)}`));
+		});
+	});
+
+	// Step S-fly-deploy: the actual rollout. `--remote-only` builds on Fly's
+	// builder instead of locally, keeping the operator's machine free.
+	const flyId = 'staging-fly-deploy';
 	emit({ type: 'step:start', stepId: flyId, data: `flyctl deploy --remote-only --app ${appName}`, timestamp: Date.now() });
 	await new Promise<void>((resolveFn, rejectFn) => {
 		if (signal.aborted) {
@@ -907,7 +955,7 @@ async function stagingPhase(
 		}
 		const child = spawn('flyctl', ['deploy', '--remote-only', '--app', appName], {
 			cwd: frontendDir,
-			env: { ...process.env, FLY_API_TOKEN: flyApiToken },
+			env: flyEnv,
 			stdio: ['ignore', 'pipe', 'pipe'],
 			signal
 		});
@@ -920,7 +968,7 @@ async function stagingPhase(
 		child.on('error', rejectFn);
 		child.on('close', (code: number | null) => {
 			if (code === 0) {
-				emit({ type: 'step:pass', stepId: flyId, data: 'Frontend deployed', timestamp: Date.now() });
+				emit({ type: 'step:pass', stepId: flyId, data: `Frontend deployed at https://${appName}.fly.dev`, timestamp: Date.now() });
 				resolveFn();
 				return;
 			}
