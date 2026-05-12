@@ -218,6 +218,40 @@ Documented in `labor-factory-multitenant/README.md`:
 - ALB rule for path `/api/multitenant/*` adds a CIDR allowlist condition (LABOR office IPs + Bitbucket Pipelines egress for the staging caller).
 - Bitbucket Pipelines variable for the bearer token.
 
+### G. Tenant persistence (the file the API actually writes)
+
+`POST /tenants` and `PATCH /tenants/{slug}` mutate
+`/var/www/html/config/sites/{slug}/factory.json` (and `config.yaml`).
+That path **must persist across ECS task replacements** — otherwise
+new tenants would be ephemeral and we'd be back to per-tenant
+redeploys, which the whole API exists to avoid.
+
+**Mechanism**: LABOR's base image mounts EFS at `/var/www/html_data/`
+(the same volume `fileadmin/` lives in). `opt/bootstrap.sh` in the
+deploy repo runs on every container boot and symlinks the
+application path into EFS:
+
+```bash
+ensure_dir /var/www/html_data/sites
+rm -rf /var/www/html/config/sites
+ln -sn /var/www/html_data/sites /var/www/html/config/sites
+```
+
+No task-def changes needed — the EFS mount already exists for
+fileadmin; we just add another `rootDirectory` worth of files inside
+it. Same pattern, zero new infrastructure. After this, every ECS
+task in the service reads + writes to the same EFS-backed
+`config/sites/`, so multi-task fanout (DL #013's "Multi-instance
+caveat") is purely an in-memory cache concern — the on-disk truth is
+unified.
+
+**Implication for new tenants**: no redeploy needed. The API writes
+a new `factory.json` on EFS at runtime, `FactoryComponentRegistry::
+invalidate()` clears the in-process cache on the worker that handled
+the call, other tasks catch up within ~60s on their natural worker
+recycle. A fresh TYPO3 BE request on any task immediately sees the
+new tenant in the site list.
+
 ## Implementation Plan
 
 Tier 1 (parallelizable):
