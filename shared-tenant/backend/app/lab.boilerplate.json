@@ -1,7 +1,0 @@
-{
-    "name": "PHP 8.4",
-    "replaceProjectNameIn": [
-        ".env.template",
-        "src/composer.json"
-    ]
-}
