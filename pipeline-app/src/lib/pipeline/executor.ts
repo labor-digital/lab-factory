@@ -287,6 +287,22 @@ async function scaffoldPhase(
 
 	if (!ok) throw new Error('Scaffolding assertions failed');
 
+	// Rewrite fly.toml primary_region with the configured value. The template
+	// hardcodes "ams"; lab-cli's substitution only handles {{PROJECT_NAME}},
+	// so the region setting otherwise has no effect on Fly deploys.
+	const flyTomlPath = resolve(projectDir, 'frontend/app/fly.toml');
+	try {
+		const raw = await readFile(flyTomlPath, 'utf-8');
+		const rewritten = raw.replace(/^primary_region\s*=\s*"[^"]*"/m, `primary_region = "${config.flyIoRegion}"`);
+		if (rewritten !== raw) {
+			await writeFile(flyTomlPath, rewritten);
+			emit({ type: 'step:output', stepId: 'scaffold-create', data: `Set fly.toml primary_region = "${config.flyIoRegion}"`, timestamp: Date.now() });
+		}
+	} catch (err) {
+		// Local-only flows may not have fly.toml — non-fatal.
+		emit({ type: 'step:output', stepId: 'scaffold-create', data: `fly.toml region rewrite skipped: ${(err as Error).message}`, timestamp: Date.now() });
+	}
+
 	// Always create the factory-core symlinks. lab-cli's factory:* commands
 	// resolve the component manifest via `<cwd>/../factory-core/manifest.json`,
 	// which only exists in the monorepo root — neither the published Composer
