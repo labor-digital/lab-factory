@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.7.0...factory-multitenant-api-v0.7.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* **factory-multitenant-api:** require factory-core ^0.8 ([df0d26e](https://github.com/labor-digital/lab-factory/commit/df0d26e7fa1bb9f079fa20c2da4f1f6fae31fec7))
+
 ## [0.7.0](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.6.0...factory-multitenant-api-v0.7.0) (2026-05-13)
 
 
