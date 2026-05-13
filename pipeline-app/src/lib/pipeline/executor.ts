@@ -976,9 +976,18 @@ async function stagingPhase(
 	//      Dockerfile.production template is runtime-only — it just COPYs
 	//      src/.output and runs `node server/index.mjs`. Fly's build becomes
 	//      a 5-10s COPY instead of a ~90s npm-ci + nuxt-build cycle.
+	//
+	// TYPO3_API_BASE_URL is passed to `nuxt build` because the template's
+	// nuxt.config.ts reads `process.env.TYPO3_API_BASE_URL` at BUILD time
+	// (not runtime). Without this, the bundle is built with an empty
+	// baseUrl and the server-side fetch crashes on "Failed to parse URL
+	// from /?type=834" (relative URL because base is empty). The flyctl
+	// secrets set step is still useful as a future-proofing layer in case
+	// the nuxt config later gets refactored to runtimeConfig.
 	const buildSrcDir = resolve(frontendDir, 'src');
+	const buildEnv = { ...process.env, TYPO3_API_BASE_URL: config.typo3ApiBaseUrl };
 	await runStagingCommand('npm', ['install', '--no-audit', '--no-fund'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-npm-install', signal });
-	await runStagingCommand('npm', ['run', 'build'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-build', signal });
+	await runStagingCommand('npm', ['run', 'build'], { cwd: buildSrcDir, env: buildEnv, emit, stepId: 'staging-frontend-build', signal });
 
 	// Step S-fly-create: idempotent — succeeds whether the app already exists or not.
 	const createId = 'staging-fly-apps-create';
@@ -1210,10 +1219,12 @@ async function runFlyDeployForSlug(
 
 	// Local build before flyctl deploy — same rationale as the create-mode
 	// path. Required because the runtime-only Dockerfile.production expects
-	// src/.output/ to exist in the build context.
+	// src/.output/ to exist in the build context. TYPO3_API_BASE_URL must
+	// be in the env for `nuxt build` (the config reads it at build time).
 	const buildSrcDir = resolve(frontendDir, 'src');
+	const buildEnv = { ...process.env, TYPO3_API_BASE_URL: config.typo3ApiBaseUrl };
 	await runStagingCommand('npm', ['install', '--no-audit', '--no-fund'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-npm-install', signal });
-	await runStagingCommand('npm', ['run', 'build'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-build', signal });
+	await runStagingCommand('npm', ['run', 'build'], { cwd: buildSrcDir, env: buildEnv, emit, stepId: 'staging-frontend-build', signal });
 
 	const createId = 'staging-fly-apps-create';
 	emit({ type: 'step:start', stepId: createId, data: `flyctl apps create ${appName} --org ${config.flyIoOrgSlug}`, timestamp: Date.now() });
