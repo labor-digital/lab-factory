@@ -899,6 +899,13 @@ async function stagingPhase(
 	// the SSR fetch 404s.
 	const tenantBaseUrl = baseUrl.replace(/\/+$/, '') + '/' + tenant.slug;
 
+	// `frontendBase` is what friendsoftypo3/headless uses for link
+	// generation in menus/breadcrumbs/etc. tenant.domain is the public
+	// Nuxt host (Fly URL in this setup); without prefixing it the API
+	// returns links like `/heckelsmueller-test-1/kontakt` which the Nuxt
+	// frontend resolves relative to fly.dev and 404s on.
+	const tenantFrontendBase = 'https://' + tenant.domain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
 	// POST /tenants
 	const postId = 'staging-post-tenant';
 	emit({ type: 'step:start', stepId: postId, data: `POST ${baseUrl}/api/multitenant/tenants slug=${tenant.slug} base=${tenantBaseUrl}`, timestamp: Date.now() });
@@ -912,7 +919,8 @@ async function stagingPhase(
 			recordTypes: tenant.activeRecordTypes,
 			adminEmail: tenant.adminEmail,
 			coreVersion: seedCoreVersion,
-			base: tenantBaseUrl
+			base: tenantBaseUrl,
+			frontendBase: tenantFrontendBase
 		});
 		emit({ type: 'step:output', stepId: postId, data: JSON.stringify(result).slice(0, 500), timestamp: Date.now() });
 	} catch (err) {

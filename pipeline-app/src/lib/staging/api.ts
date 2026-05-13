@@ -58,6 +58,11 @@ export interface CreateTenantRequest {
 	// matches incoming requests by subpath. Omit for single-tenant clients
 	// (the server falls back to `https://${domain}`).
 	base?: string;
+	// Public Nuxt frontend URL. friendsoftypo3/headless uses this to build
+	// menu/page link hrefs that the Nuxt frontend can resolve at its own
+	// origin (without inheriting the TYPO3 host's subpath prefix). Omit
+	// for single-tenant clients where TYPO3 and the frontend share a host.
+	frontendBase?: string;
 }
 
 export async function createTenant(
