@@ -916,11 +916,17 @@ async function stagingPhase(
 	const tenantBaseUrl = baseUrl.replace(/\/+$/, '') + '/' + tenant.slug;
 
 	// `frontendBase` is what friendsoftypo3/headless uses for link
-	// generation in menus/breadcrumbs/etc. tenant.domain is the public
-	// Nuxt host (Fly URL in this setup); without prefixing it the API
-	// returns links like `/heckelsmueller-test-1/kontakt` which the Nuxt
-	// frontend resolves relative to fly.dev and 404s on.
-	const tenantFrontendBase = 'https://' + tenant.domain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+	// generation in menus/breadcrumbs/etc. For Fly-hosted staging, the
+	// actual public Nuxt host is ALWAYS `${slug}-frontend.fly.dev`
+	// (executor's appName convention below) — so derive from slug, not
+	// tenant.domain. tenant.domain is informational (future production
+	// hostname) and frequently a placeholder pre-filled from the seed's
+	// suggestedTenants[].domain (e.g. "heckelsmueller.example.com"); using
+	// it for frontendBase produces broken menu hrefs pointing at a domain
+	// that doesn't resolve.
+	const tenantFrontendBase = config.frontendHostingTarget === 'fly-io'
+		? `https://${tenant.slug}-frontend.fly.dev`
+		: 'https://' + tenant.domain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
 
 	// POST /tenants
 	const postId = 'staging-post-tenant';
