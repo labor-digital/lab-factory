@@ -891,9 +891,17 @@ async function stagingPhase(
 		emit({ type: 'step:output', stepId: 'staging-validate', data: 'No adminEmail set; the multitenant API will reject the request — expect 400.', timestamp: Date.now() });
 	}
 
+	// Shared-host staging puts every tenant on a subpath of the staging URL.
+	// The TYPO3 site resolver matches incoming requests by base-URL prefix,
+	// so the tenant's site `base` MUST equal what the Nuxt frontend will
+	// call. We use this single derived URL for: the POST body's `base`,
+	// the nuxt build env, and flyctl secrets — they all have to agree or
+	// the SSR fetch 404s.
+	const tenantBaseUrl = baseUrl.replace(/\/+$/, '') + '/' + tenant.slug;
+
 	// POST /tenants
 	const postId = 'staging-post-tenant';
-	emit({ type: 'step:start', stepId: postId, data: `POST ${baseUrl}/api/multitenant/tenants slug=${tenant.slug}`, timestamp: Date.now() });
+	emit({ type: 'step:start', stepId: postId, data: `POST ${baseUrl}/api/multitenant/tenants slug=${tenant.slug} base=${tenantBaseUrl}`, timestamp: Date.now() });
 	const { createTenant, getTenant } = await import('$lib/staging/api.js');
 	try {
 		const result = await createTenant(baseUrl, token, {
@@ -903,7 +911,8 @@ async function stagingPhase(
 			components: tenant.activeComponents,
 			recordTypes: tenant.activeRecordTypes,
 			adminEmail: tenant.adminEmail,
-			coreVersion: seedCoreVersion
+			coreVersion: seedCoreVersion,
+			base: tenantBaseUrl
 		});
 		emit({ type: 'step:output', stepId: postId, data: JSON.stringify(result).slice(0, 500), timestamp: Date.now() });
 	} catch (err) {
@@ -981,11 +990,15 @@ async function stagingPhase(
 	// nuxt.config.ts reads `process.env.TYPO3_API_BASE_URL` at BUILD time
 	// (not runtime). Without this, the bundle is built with an empty
 	// baseUrl and the server-side fetch crashes on "Failed to parse URL
-	// from /?type=834" (relative URL because base is empty). The flyctl
-	// secrets set step is still useful as a future-proofing layer in case
-	// the nuxt config later gets refactored to runtimeConfig.
+	// from /?type=834" (relative URL because base is empty).
+	//
+	// We use the per-tenant subpath URL (NOT config.typo3ApiBaseUrl,
+	// which is the local-pipeline backend URL). The frontend MUST call
+	// the same URL TYPO3's site config has as `base`, or the site
+	// resolver returns 404. flyctl secrets gets the same value as a
+	// runtime fallback for any future runtimeConfig refactor.
 	const buildSrcDir = resolve(frontendDir, 'src');
-	const buildEnv = { ...process.env, TYPO3_API_BASE_URL: config.typo3ApiBaseUrl };
+	const buildEnv = { ...process.env, TYPO3_API_BASE_URL: tenantBaseUrl };
 	await runStagingCommand('npm', ['install', '--no-audit', '--no-fund'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-npm-install', signal });
 	await runStagingCommand('npm', ['run', 'build'], { cwd: buildSrcDir, env: buildEnv, emit, stepId: 'staging-frontend-build', signal });
 
@@ -1017,10 +1030,10 @@ async function stagingPhase(
 	// but returns 500 on every request. `--stage` defers the apply until the next
 	// deploy (which is the next step), so we don't trigger an extra restart.
 	const secretsId = 'staging-fly-secrets-set';
-	emit({ type: 'step:start', stepId: secretsId, data: `flyctl secrets set TYPO3_API_BASE_URL=<redacted> --app ${appName}`, timestamp: Date.now() });
+	emit({ type: 'step:start', stepId: secretsId, data: `flyctl secrets set TYPO3_API_BASE_URL=${tenantBaseUrl} --app ${appName}`, timestamp: Date.now() });
 	await new Promise<void>((resolveFn, rejectFn) => {
 		if (signal.aborted) { rejectFn(new Error('Aborted')); return; }
-		const child = spawn('flyctl', ['secrets', 'set', `TYPO3_API_BASE_URL=${config.typo3ApiBaseUrl}`, '--app', appName, '--stage'], {
+		const child = spawn('flyctl', ['secrets', 'set', `TYPO3_API_BASE_URL=${tenantBaseUrl}`, '--app', appName, '--stage'], {
 			cwd: frontendDir, env: flyEnv, stdio: ['ignore', 'pipe', 'pipe'], signal
 		});
 		let stderr = '';
@@ -1217,12 +1230,17 @@ async function runFlyDeployForSlug(
 	const frontendDir = resolve(projectDir, 'frontend/app');
 	const flyEnv = { ...process.env, FLY_API_TOKEN: flyApiToken };
 
+	// Per-tenant TYPO3 site base, mirrored from the create-mode path.
+	// Update-mode redeploys must use this URL too — the existing site
+	// config on staging was provisioned with the same prefix.
+	const tenantBaseUrl = config.stagingApiBaseUrl.trim().replace(/\/+$/, '') + '/' + slug;
+
 	// Local build before flyctl deploy — same rationale as the create-mode
 	// path. Required because the runtime-only Dockerfile.production expects
 	// src/.output/ to exist in the build context. TYPO3_API_BASE_URL must
 	// be in the env for `nuxt build` (the config reads it at build time).
 	const buildSrcDir = resolve(frontendDir, 'src');
-	const buildEnv = { ...process.env, TYPO3_API_BASE_URL: config.typo3ApiBaseUrl };
+	const buildEnv = { ...process.env, TYPO3_API_BASE_URL: tenantBaseUrl };
 	await runStagingCommand('npm', ['install', '--no-audit', '--no-fund'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-npm-install', signal });
 	await runStagingCommand('npm', ['run', 'build'], { cwd: buildSrcDir, env: buildEnv, emit, stepId: 'staging-frontend-build', signal });
 
@@ -1249,10 +1267,10 @@ async function runFlyDeployForSlug(
 	});
 
 	const secretsId = 'staging-fly-secrets-set';
-	emit({ type: 'step:start', stepId: secretsId, data: `flyctl secrets set TYPO3_API_BASE_URL=<redacted> --app ${appName}`, timestamp: Date.now() });
+	emit({ type: 'step:start', stepId: secretsId, data: `flyctl secrets set TYPO3_API_BASE_URL=${tenantBaseUrl} --app ${appName}`, timestamp: Date.now() });
 	await new Promise<void>((resolveFn, rejectFn) => {
 		if (signal.aborted) { rejectFn(new Error('Aborted')); return; }
-		const child = spawn('flyctl', ['secrets', 'set', `TYPO3_API_BASE_URL=${config.typo3ApiBaseUrl}`, '--app', appName, '--stage'], {
+		const child = spawn('flyctl', ['secrets', 'set', `TYPO3_API_BASE_URL=${tenantBaseUrl}`, '--app', appName, '--stage'], {
 			cwd: frontendDir, env: flyEnv, stdio: ['ignore', 'pipe', 'pipe'], signal
 		});
 		let stderr = '';

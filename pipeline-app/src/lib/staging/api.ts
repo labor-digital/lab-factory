@@ -53,6 +53,11 @@ export interface CreateTenantRequest {
 	recordTypes: string[];
 	adminEmail: string;
 	coreVersion?: string;
+	// Full TYPO3 site base URL. For shared-host staging, pipeline-app sets
+	// this to `${stagingApiBaseUrl}/${slug}` so the TYPO3 site resolver
+	// matches incoming requests by subpath. Omit for single-tenant clients
+	// (the server falls back to `https://${domain}`).
+	base?: string;
 }
 
 export async function createTenant(
