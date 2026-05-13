@@ -69,14 +69,23 @@ final class TenantController
         $components = $this->normalizeList($body['components'] ?? []);
         $recordTypes = $this->normalizeList($body['recordTypes'] ?? []);
 
-        $input = new ArrayInput([
+        // Optional `base`: full TYPO3 site base URL. Required for shared-host
+        // setups where every tenant lives on a subpath like
+        // https://shared.example.com/<slug>. Falls back inside the command to
+        // https://<domain> for single-tenant clients that don't send this.
+        $base = is_string($body['base'] ?? null) ? (string)$body['base'] : '';
+        $args = [
             '--slug' => $body['slug'],
             '--domain' => $body['domain'],
             '--display-name' => $body['displayName'],
             '--components' => implode(',', $components),
             '--record-types' => implode(',', $recordTypes),
             '--admin-email' => $body['adminEmail'],
-        ]);
+        ];
+        if ($base !== '') {
+            $args['--base'] = $base;
+        }
+        $input = new ArrayInput($args);
         $output = new BufferedOutput();
 
         try {
