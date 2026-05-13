@@ -12,3 +12,12 @@ services:
 
   LaborDigital\FactoryMultitenantApi\Middleware\ApiRouter:
     public: true
+
+  # Patch friendsoftypo3/headless's UrlUtility so shared-host tenants get
+  # the TYPO3 backend base path stripped from generated link URLs. The
+  # upstream bug skips the strip whenever frontendBase has no path
+  # component — which is always, because resolveWithVariants() trims the
+  # trailing slash. See SubpathAwareUrlUtility for the rationale.
+  FriendsOfTYPO3\Headless\Utility\HeadlessFrontendUrlInterface:
+    class: LaborDigital\FactoryMultitenantApi\Utility\SubpathAwareUrlUtility
+    autowire: true
