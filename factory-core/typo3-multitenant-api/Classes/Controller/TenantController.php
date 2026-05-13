@@ -78,6 +78,9 @@ final class TenantController
         // uses this for link generation in menus/breadcrumbs/etc. Must be set
         // explicitly when the TYPO3 host and the frontend host differ.
         $frontendBase = is_string($body['frontendBase'] ?? null) ? (string)$body['frontendBase'] : '';
+        // Optional `language`: 2-letter ISO code; drives site locale/hreflang.
+        // Defaults to 'en' inside the command.
+        $language = is_string($body['language'] ?? null) ? trim((string)$body['language']) : '';
         $args = [
             '--slug' => $body['slug'],
             '--domain' => $body['domain'],
@@ -91,6 +94,9 @@ final class TenantController
         }
         if ($frontendBase !== '') {
             $args['--frontend-base'] = $frontendBase;
+        }
+        if ($language !== '') {
+            $args['--language'] = $language;
         }
         $input = new ArrayInput($args);
         $output = new BufferedOutput();
