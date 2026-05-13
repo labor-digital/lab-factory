@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.3.1...factory-multitenant-api-v0.4.0) (2026-05-13)
+
+
+### Features
+
+* **factory-multitenant-api:** accept pages payload on POST /tenants/{slug}/content ([2aef937](https://github.com/labor-digital/lab-factory/commit/2aef937a7009dc17d5b3e8be2726feca8814cc94))
+
 ## [0.3.1](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.3.0...factory-multitenant-api-v0.3.1) (2026-05-13)
 
 
