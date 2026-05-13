@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.5.1...factory-multitenant-api-v0.6.0) (2026-05-13)
+
+
+### Features
+
+* **factory-multitenant-api:** strip backend base path from generated links ([b600890](https://github.com/labor-digital/lab-factory/commit/b6008907963a3f1f9c9e14ac48ab4a0858802417))
+
 ## [0.5.1](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.5.0...factory-multitenant-api-v0.5.1) (2026-05-13)
 
 
