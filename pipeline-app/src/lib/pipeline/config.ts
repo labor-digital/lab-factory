@@ -58,7 +58,7 @@ export const DEFAULT_CONFIG: PipelineConfig = {
 	stackServiceName: 'app',
 	frontendHostingTarget: 'fly-io',
 	flyIoOrgSlug: 'personal',
-	flyIoRegion: 'ams',
+	flyIoRegion: 'fra',
 	flyIoMachineSize: 'shared-cpu-1x-512',
 	seedsRepoPath: '../labor-factory-seeds',
 	targetEnvironment: 'local',

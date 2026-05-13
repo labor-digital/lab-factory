@@ -1,13 +1,24 @@
-FROM node:22-alpine AS build
+# Runtime-only Dockerfile.production. Expects the operator to have run
+# `npm install && npm run build` locally before `flyctl deploy` — pipeline-app's
+# staging-deploy path does this automatically (see executor.ts stagingPhase).
+#
+# Why no build stage:
+#  - `npm ci` on a freshly-scaffolded project fails when scaffold patched
+#    package.json but didn't re-resolve the lockfile (the old two-stage
+#    Dockerfile hit this on every E2E run).
+#  - Local build is faster: ~5–10s `COPY .output` vs ~90s build-on-Fly.
+#  - Build determinism: the .output artifact deployed is identical to what
+#    the operator validated locally.
+#
+# To build locally manually (for debugging without pipeline-app):
+#   cd <project>/frontend/app/src
+#   npm install            # regenerates lock if package.json moved
+#   npm run build          # produces .output/
+#   cd ..
+#   flyctl deploy --remote-only
+FROM node:22-alpine
 WORKDIR /app
-COPY src/package*.json ./
-RUN npm ci
-COPY src/ ./
-RUN npm run build
-
-FROM node:22-alpine AS runtime
-WORKDIR /app
-COPY --from=build /app/.output /app/.output
+COPY src/.output /app/.output
 ENV NITRO_PORT=3000 NITRO_HOST=0.0.0.0
 EXPOSE 3000
 CMD ["node", ".output/server/index.mjs"]

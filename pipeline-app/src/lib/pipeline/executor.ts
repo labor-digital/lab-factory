@@ -968,6 +968,18 @@ async function stagingPhase(
 	const frontendDir = resolve(projectDir, 'frontend/app');
 	const flyEnv = { ...process.env, FLY_API_TOKEN: flyApiToken };
 
+	// Local build before flyctl deploy. Two reasons:
+	//   1. npm install regenerates the lockfile (the scaffold's npm-mode patch
+	//      to package.json otherwise leaves a stale lock that `npm ci` rejects
+	//      on Fly's builder).
+	//   2. `npm run build` produces the SSR .output/ artifact. The new
+	//      Dockerfile.production template is runtime-only — it just COPYs
+	//      src/.output and runs `node server/index.mjs`. Fly's build becomes
+	//      a 5-10s COPY instead of a ~90s npm-ci + nuxt-build cycle.
+	const buildSrcDir = resolve(frontendDir, 'src');
+	await runStagingCommand('npm', ['install', '--no-audit', '--no-fund'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-npm-install', signal });
+	await runStagingCommand('npm', ['run', 'build'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-build', signal });
+
 	// Step S-fly-create: idempotent — succeeds whether the app already exists or not.
 	const createId = 'staging-fly-apps-create';
 	emit({ type: 'step:start', stepId: createId, data: `flyctl apps create ${appName} --org ${config.flyIoOrgSlug}`, timestamp: Date.now() });
@@ -1139,6 +1151,47 @@ async function runStagingUpdateMode(
 }
 
 /**
+ * Generic local-spawn helper for staging-phase steps. Same shape as the
+ * other runCommand variants in this file but lives outside the closures
+ * so update-mode and create-mode share it without duplicating spawn logic.
+ */
+async function runStagingCommand(
+	cmd: string,
+	args: string[],
+	opts: { cwd: string; emit: Emit; stepId: string; signal: AbortSignal; env?: NodeJS.ProcessEnv }
+): Promise<void> {
+	return new Promise((resolveP, rejectP) => {
+		if (opts.signal.aborted) { rejectP(new Error('Aborted')); return; }
+		const display = `${cmd} ${args.join(' ')}`;
+		opts.emit({ type: 'step:start', stepId: opts.stepId, data: display, timestamp: Date.now() });
+		const child = spawn(cmd, args, {
+			cwd: opts.cwd,
+			env: opts.env ?? { ...process.env },
+			stdio: ['ignore', 'pipe', 'pipe'],
+			signal: opts.signal
+		});
+		let stderr = '';
+		const onLine = (chunk: Buffer) => {
+			for (const line of chunk.toString().split('\n')) {
+				if (line.trim()) opts.emit({ type: 'step:output', stepId: opts.stepId, data: line, timestamp: Date.now() });
+			}
+		};
+		child.stdout.on('data', onLine);
+		child.stderr.on('data', (c: Buffer) => { stderr += c.toString(); onLine(c); });
+		child.on('error', rejectP);
+		child.on('close', (code: number | null) => {
+			if (code === 0) {
+				opts.emit({ type: 'step:pass', stepId: opts.stepId, timestamp: Date.now() });
+				resolveP();
+				return;
+			}
+			opts.emit({ type: 'step:fail', stepId: opts.stepId, data: `exit ${code}: ${stderr.slice(0, 300)}`, timestamp: Date.now() });
+			rejectP(new Error(`${display} exited with code ${code}`));
+		});
+	});
+}
+
+/**
  * Three-step Fly.io deploy (apps create + secrets set + deploy) for an
  * arbitrary slug. Factored out so update-mode redeploys can reuse the
  * exact same pattern as create-mode without duplicating the spawn logic.
@@ -1154,6 +1207,13 @@ async function runFlyDeployForSlug(
 	const appName = slug + '-frontend';
 	const frontendDir = resolve(projectDir, 'frontend/app');
 	const flyEnv = { ...process.env, FLY_API_TOKEN: flyApiToken };
+
+	// Local build before flyctl deploy — same rationale as the create-mode
+	// path. Required because the runtime-only Dockerfile.production expects
+	// src/.output/ to exist in the build context.
+	const buildSrcDir = resolve(frontendDir, 'src');
+	await runStagingCommand('npm', ['install', '--no-audit', '--no-fund'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-npm-install', signal });
+	await runStagingCommand('npm', ['run', 'build'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-build', signal });
 
 	const createId = 'staging-fly-apps-create';
 	emit({ type: 'step:start', stepId: createId, data: `flyctl apps create ${appName} --org ${config.flyIoOrgSlug}`, timestamp: Date.now() });
