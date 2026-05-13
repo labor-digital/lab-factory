@@ -63,6 +63,10 @@ export interface CreateTenantRequest {
 	// origin (without inheriting the TYPO3 host's subpath prefix). Omit
 	// for single-tenant clients where TYPO3 and the frontend share a host.
 	frontendBase?: string;
+	// 2-letter ISO language code (en/de/fr/it/es/nl). Drives the site's
+	// only-language locale/hreflang/flag. Omit to use 'en' (the command's
+	// default).
+	language?: string;
 }
 
 export async function createTenant(

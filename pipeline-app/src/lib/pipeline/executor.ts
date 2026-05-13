@@ -927,6 +927,7 @@ async function stagingPhase(
 	emit({ type: 'step:start', stepId: postId, data: `POST ${baseUrl}/api/multitenant/tenants slug=${tenant.slug} base=${tenantBaseUrl}`, timestamp: Date.now() });
 	const { createTenant, getTenant } = await import('$lib/staging/api.js');
 	try {
+		const seedLanguage = typeof payload?.language === 'string' ? payload.language : undefined;
 		const result = await createTenant(baseUrl, token, {
 			slug: tenant.slug,
 			domain: tenant.domain,
@@ -936,7 +937,8 @@ async function stagingPhase(
 			adminEmail: tenant.adminEmail,
 			coreVersion: seedCoreVersion,
 			base: tenantBaseUrl,
-			frontendBase: tenantFrontendBase
+			frontendBase: tenantFrontendBase,
+			language: seedLanguage
 		});
 		emit({ type: 'step:output', stepId: postId, data: JSON.stringify(result).slice(0, 500), timestamp: Date.now() });
 	} catch (err) {
