@@ -74,6 +74,10 @@ final class TenantController
         // https://shared.example.com/<slug>. Falls back inside the command to
         // https://<domain> for single-tenant clients that don't send this.
         $base = is_string($body['base'] ?? null) ? (string)$body['base'] : '';
+        // Optional `frontendBase`: public Nuxt host. friendsoftypo3/headless
+        // uses this for link generation in menus/breadcrumbs/etc. Must be set
+        // explicitly when the TYPO3 host and the frontend host differ.
+        $frontendBase = is_string($body['frontendBase'] ?? null) ? (string)$body['frontendBase'] : '';
         $args = [
             '--slug' => $body['slug'],
             '--domain' => $body['domain'],
@@ -84,6 +88,9 @@ final class TenantController
         ];
         if ($base !== '') {
             $args['--base'] = $base;
+        }
+        if ($frontendBase !== '') {
+            $args['--frontend-base'] = $frontendBase;
         }
         $input = new ArrayInput($args);
         $output = new BufferedOutput();
