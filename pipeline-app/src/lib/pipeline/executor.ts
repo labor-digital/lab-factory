@@ -1001,6 +1001,7 @@ async function stagingPhase(
 	// runtime fallback for any future runtimeConfig refactor.
 	const buildSrcDir = resolve(frontendDir, 'src');
 	const buildEnv = { ...process.env, TYPO3_API_BASE_URL: tenantBaseUrl };
+	await applySeedSettingsToFactoryJson(buildSrcDir, payload, emit);
 	await runStagingCommand('npm', ['install', '--no-audit', '--no-fund'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-npm-install', signal });
 	await runStagingCommand('npm', ['run', 'build'], { cwd: buildSrcDir, env: buildEnv, emit, stepId: 'staging-frontend-build', signal });
 
@@ -1108,6 +1109,15 @@ async function runStagingUpdateMode(
 
 	const { seedTenantContent, getTenant } = await import('$lib/staging/api.js');
 
+	// Read the seed payload once at the top — content seeding AND redeploy
+	// both need it (content uses elements/pages; redeploy needs settings
+	// to apply at build time). Avoiding a second read keeps the SSE log
+	// from emitting two "Loaded seed" lines.
+	const updateProjectRoot = resolve(dirname(new URL(import.meta.url).pathname), '..', '..', '..', '..');
+	const updateFactoryCoreAbs = resolve(updateProjectRoot, config.factoryCorePath);
+	const updateSeedsRepoAbs = resolve(updateProjectRoot, config.seedsRepoPath);
+	const updatePayload = await readSeedPayload(updateFactoryCoreAbs, updateSeedsRepoAbs, config.seedTemplate);
+
 	if (config.updateOps.settings) {
 		const id = 'staging-update-settings';
 		emit({ type: 'step:start', stepId: id, data: `PATCH ${baseUrl}/api/multitenant/tenants/${slug}`, timestamp: Date.now() });
@@ -1143,13 +1153,8 @@ async function runStagingUpdateMode(
 			throw new Error('tenant_not_found');
 		}
 
-		// Load seed payload to get elements[].
-		const projectRoot = resolve(dirname(new URL(import.meta.url).pathname), '..', '..', '..', '..');
-		const factoryCoreAbs = resolve(projectRoot, config.factoryCorePath);
-		const seedsRepoAbs = resolve(projectRoot, config.seedsRepoPath);
-		const payload = await readSeedPayload(factoryCoreAbs, seedsRepoAbs, config.seedTemplate);
-		const elements = (payload?.elements ?? []) as Array<{ component?: string; data?: Record<string, unknown> }>;
-		const pages = (Array.isArray(payload?.pages) ? payload.pages : []) as Array<{ title?: string; slug?: string; elements?: Array<{ component?: string; data?: Record<string, unknown> }> }>;
+		const elements = (updatePayload?.elements ?? []) as Array<{ component?: string; data?: Record<string, unknown> }>;
+		const pages = (Array.isArray(updatePayload?.pages) ? updatePayload.pages : []) as Array<{ title?: string; slug?: string; elements?: Array<{ component?: string; data?: Record<string, unknown> }> }>;
 
 		emit({ type: 'step:start', stepId: id, data: `POST ${baseUrl}/api/multitenant/tenants/${slug}/content (${elements.length} elements, ${pages.length} subpages)`, timestamp: Date.now() });
 		try {
@@ -1166,7 +1171,7 @@ async function runStagingUpdateMode(
 		if (!flyApiToken) {
 			emit({ type: 'step:output', stepId: 'staging-update-redeploy-skip', data: 'FLY_API_TOKEN not set — skipping frontend redeploy.', timestamp: Date.now() });
 		} else {
-			await runFlyDeployForSlug(config, projectDir, slug, flyApiToken, emit, signal);
+			await runFlyDeployForSlug(config, projectDir, slug, flyApiToken, emit, signal, updatePayload);
 		}
 	}
 
@@ -1217,6 +1222,43 @@ async function runStagingCommand(
 }
 
 /**
+ * Merge the seed's `settings` block into the scaffolded frontend's
+ * `factory.json` before the Nuxt build. factory-settings.ts reads
+ * factory.json at module setup (build-time, not runtime), so the seed's
+ * colorMode/colors/etc. only land in the deployed bundle if this file
+ * is correct BEFORE `npm run build`.
+ *
+ * scaffoldPhase already writes `config.settings` (which reflects the
+ * form defaults, NOT the seed) into this file — without this overwrite
+ * the staging deploy would render with whatever the operator's form
+ * shows, even if the seed said something different. Seed wins.
+ */
+async function applySeedSettingsToFactoryJson(
+	buildSrcDir: string,
+	payload: Record<string, unknown> | null,
+	emit: Emit
+): Promise<void> {
+	if (!payload || typeof payload.settings !== 'object' || payload.settings === null) {
+		return;
+	}
+	const factoryJsonPath = resolve(buildSrcDir, 'factory.json');
+	const stepId = 'staging-frontend-apply-settings';
+	emit({ type: 'step:start', stepId, data: `Merging seed.settings into ${factoryJsonPath.replace(/^.*\/frontend\//, 'frontend/')}`, timestamp: Date.now() });
+	try {
+		const raw = await readFile(factoryJsonPath, 'utf-8');
+		const json = JSON.parse(raw) as Record<string, unknown>;
+		const existing = (typeof json.settings === 'object' && json.settings !== null ? json.settings : {}) as Record<string, unknown>;
+		json.settings = { ...existing, ...(payload.settings as Record<string, unknown>) };
+		await writeFile(factoryJsonPath, JSON.stringify(json, null, '\t') + '\n');
+		const seedSettings = payload.settings as Record<string, unknown>;
+		emit({ type: 'step:pass', stepId, data: `Applied (colorMode=${seedSettings.colorMode ?? '(unset)'})`, timestamp: Date.now() });
+	} catch (err) {
+		emit({ type: 'step:fail', stepId, data: (err as Error).message, timestamp: Date.now() });
+		throw err;
+	}
+}
+
+/**
  * Three-step Fly.io deploy (apps create + secrets set + deploy) for an
  * arbitrary slug. Factored out so update-mode redeploys can reuse the
  * exact same pattern as create-mode without duplicating the spawn logic.
@@ -1227,7 +1269,8 @@ async function runFlyDeployForSlug(
 	slug: string,
 	flyApiToken: string,
 	emit: Emit,
-	signal: AbortSignal
+	signal: AbortSignal,
+	payload: Record<string, unknown> | null = null
 ): Promise<void> {
 	const appName = slug + '-frontend';
 	const frontendDir = resolve(projectDir, 'frontend/app');
@@ -1244,6 +1287,7 @@ async function runFlyDeployForSlug(
 	// be in the env for `nuxt build` (the config reads it at build time).
 	const buildSrcDir = resolve(frontendDir, 'src');
 	const buildEnv = { ...process.env, TYPO3_API_BASE_URL: tenantBaseUrl };
+	await applySeedSettingsToFactoryJson(buildSrcDir, payload, emit);
 	await runStagingCommand('npm', ['install', '--no-audit', '--no-fund'], { cwd: buildSrcDir, emit, stepId: 'staging-frontend-npm-install', signal });
 	await runStagingCommand('npm', ['run', 'build'], { cwd: buildSrcDir, env: buildEnv, emit, stepId: 'staging-frontend-build', signal });
 
