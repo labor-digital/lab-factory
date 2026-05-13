@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.7.1...factory-multitenant-api-v0.7.2) (2026-05-13)
+
+
+### Bug Fixes
+
+* **factory-multitenant-api:** disable autowire on SubpathAwareUrlUtility ([96be227](https://github.com/labor-digital/lab-factory/commit/96be227ef7f35426566114f3a2528f6802fb0272))
+
 ## [0.7.1](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.7.0...factory-multitenant-api-v0.7.1) (2026-05-13)
 
 
