@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.6.0...factory-multitenant-api-v0.7.0) (2026-05-13)
+
+
+### Features
+
+* **factory-multitenant-api:** forward optional language to provision ([2487c3e](https://github.com/labor-digital/lab-factory/commit/2487c3e392b894b8b0293ea3f688bfded6dfaf62))
+
 ## [0.6.0](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.5.1...factory-multitenant-api-v0.6.0) (2026-05-13)
 
 
