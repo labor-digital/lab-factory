@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.2.1...factory-multitenant-api-v0.3.0) (2026-05-13)
+
+
+### Features
+
+* **factory-multitenant-api:** accept optional base in POST /tenants ([373e8e2](https://github.com/labor-digital/lab-factory/commit/373e8e21e501ab6c5794daf9f7931b25e1d249c5))
+
 ## [0.2.1](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.2.0...factory-multitenant-api-v0.2.1) (2026-05-12)
 
 
