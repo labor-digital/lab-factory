@@ -53,7 +53,16 @@ export const DEFAULT_CONFIG: PipelineConfig = {
 	factoryCoreNpmConstraint: '^0.1.0',
 	deploymentMode: 'standalone',
 	sharedInstanceRepoPath: '../labor-factory-multitenant',
-	tenants: [],
+	tenants: [
+		{
+			slug: 'heckelsmueller-test-1',
+			domain: 'heckelsmueller-test-1-frontend.fly.dev',
+			displayName: 'Heckelsmüller Staging',
+			activeComponents: ['PageHero', 'PageSection', 'TextSlider', 'ReferenceList'],
+			activeRecordTypes: ['Property'],
+			adminEmail: 'k.martini@labor.digital'
+		}
+	],
 	autoStartStack: true,
 	stackServiceName: 'app',
 	frontendHostingTarget: 'fly-io',

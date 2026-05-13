@@ -951,11 +951,13 @@ async function stagingPhase(
 	// re-checks the "Re-seed content" box.
 	if (payload && Array.isArray(payload.elements) && payload.elements.length > 0) {
 		const seedContentId = 'staging-seed-content';
-		emit({ type: 'step:start', stepId: seedContentId, data: `POST ${baseUrl}/api/multitenant/tenants/${tenant.slug}/content (${payload.elements.length} elements)`, timestamp: Date.now() });
+		const seedPages = Array.isArray(payload.pages) ? (payload.pages as Array<{ title?: string; slug?: string; elements?: Array<{ component?: string; data?: Record<string, unknown> }> }>) : [];
+		emit({ type: 'step:start', stepId: seedContentId, data: `POST ${baseUrl}/api/multitenant/tenants/${tenant.slug}/content (${payload.elements.length} elements, ${seedPages.length} subpages)`, timestamp: Date.now() });
 		try {
 			const { seedTenantContent } = await import('$lib/staging/api.js');
 			const seedResult = await seedTenantContent(baseUrl, token, tenant.slug, {
 				elements: payload.elements as Array<{ component?: string; data?: Record<string, unknown> }>,
+				pages: seedPages,
 				wipe: true
 			});
 			emit({ type: 'step:output', stepId: seedContentId, data: JSON.stringify(seedResult).slice(0, 300), timestamp: Date.now() });
@@ -1147,10 +1149,11 @@ async function runStagingUpdateMode(
 		const seedsRepoAbs = resolve(projectRoot, config.seedsRepoPath);
 		const payload = await readSeedPayload(factoryCoreAbs, seedsRepoAbs, config.seedTemplate);
 		const elements = (payload?.elements ?? []) as Array<{ component?: string; data?: Record<string, unknown> }>;
+		const pages = (Array.isArray(payload?.pages) ? payload.pages : []) as Array<{ title?: string; slug?: string; elements?: Array<{ component?: string; data?: Record<string, unknown> }> }>;
 
-		emit({ type: 'step:start', stepId: id, data: `POST ${baseUrl}/api/multitenant/tenants/${slug}/content (${elements.length} elements)`, timestamp: Date.now() });
+		emit({ type: 'step:start', stepId: id, data: `POST ${baseUrl}/api/multitenant/tenants/${slug}/content (${elements.length} elements, ${pages.length} subpages)`, timestamp: Date.now() });
 		try {
-			const res = await seedTenantContent(baseUrl, token, slug, { elements, wipe: true });
+			const res = await seedTenantContent(baseUrl, token, slug, { elements, pages, wipe: true });
 			emit({ type: 'step:output', stepId: id, data: JSON.stringify(res).slice(0, 300), timestamp: Date.now() });
 			emit({ type: 'step:pass', stepId: id, data: 'Content re-seeded', timestamp: Date.now() });
 		} catch (err) {

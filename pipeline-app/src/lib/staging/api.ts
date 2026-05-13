@@ -101,6 +101,14 @@ export async function getTenant(baseUrl: string, token: string, slug: string): P
 
 export interface SeedContentRequest {
 	elements: Array<{ component?: string; data?: Record<string, unknown> }>;
+	// Optional subpages — each entry becomes a `pages` row under the
+	// tenant's root with its own tt_content. Requires factory-core >= 0.6
+	// on the receiving side; older API versions silently ignore this field.
+	pages?: Array<{
+		title?: string;
+		slug?: string;
+		elements?: Array<{ component?: string; data?: Record<string, unknown> }>;
+	}>;
 	wipe?: boolean;
 }
 
