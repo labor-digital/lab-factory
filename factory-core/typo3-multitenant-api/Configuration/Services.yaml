@@ -18,6 +18,15 @@ services:
   # upstream bug skips the strip whenever frontendBase has no path
   # component — which is always, because resolveWithVariants() trims the
   # trailing slash. See SubpathAwareUrlUtility for the rationale.
+  #
+  # autowire MUST be off on the subclass: the parent UrlUtility's
+  # constructor takes a TYPO3\CMS\Core\ExpressionLanguage\Resolver which
+  # itself requires a string `$context` arg that Symfony can't autowire.
+  # All ctor args are nullable with GeneralUtility::makeInstance()
+  # fallbacks inside, so passing nothing works correctly. Headless's own
+  # Services.php registers its UrlUtility the same way (autowire(false)).
+  LaborDigital\FactoryMultitenantApi\Utility\SubpathAwareUrlUtility:
+    autowire: false
+
   FriendsOfTYPO3\Headless\Utility\HeadlessFrontendUrlInterface:
-    class: LaborDigital\FactoryMultitenantApi\Utility\SubpathAwareUrlUtility
-    autowire: true
+    alias: LaborDigital\FactoryMultitenantApi\Utility\SubpathAwareUrlUtility
