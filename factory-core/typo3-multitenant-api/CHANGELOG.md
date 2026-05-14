@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.7.3...factory-multitenant-api-v0.7.4) (2026-05-14)
+
+
+### Bug Fixes
+
+* **typo3-multitenant-api:** allow factory-core ^0.10 ([4e75b03](https://github.com/labor-digital/lab-factory/commit/4e75b039a0c3711df34c9ae62d21e23c0e701cfc))
+
 ## [0.7.3](https://github.com/labor-digital/lab-factory/compare/factory-multitenant-api-v0.7.2...factory-multitenant-api-v0.7.3) (2026-05-13)
 
 
