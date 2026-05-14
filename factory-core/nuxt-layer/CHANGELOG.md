@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/labor-digital/lab-factory/compare/factory-nuxt-layer-v0.1.2...factory-nuxt-layer-v0.2.0) (2026-05-14)
+
+
+### Features
+
+* **content-blocks:** adopt Claude-design content blocks, retire NuxtUI ones (DL [#018](https://github.com/labor-digital/lab-factory/issues/018)) ([93ccfc5](https://github.com/labor-digital/lab-factory/commit/93ccfc5e8b1df8fda2d6ae82cd62650ad74b8b97))
+
 ## [0.1.2](https://github.com/labor-digital/lab-factory/compare/factory-nuxt-layer-v0.1.1...factory-nuxt-layer-v0.1.2) (2026-04-30)
 
 
