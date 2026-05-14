@@ -1,6 +1,6 @@
 {
 	"name": "@labor-digital/factory-nuxt-layer",
-	"version": "0.1.2",
+	"version": "0.2.0",
 	"description": "Shared Nuxt layer for the LABOR.digital Factory headless CMS boilerplate — Content Block–driven Vue components consumed by client frontends over a TYPO3 headless backend.",
 	"license": "MIT",
 	"keywords": [
