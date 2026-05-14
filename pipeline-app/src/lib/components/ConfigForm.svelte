@@ -282,7 +282,7 @@
 						}}
 						{disabled}
 						rows={10}
-						placeholder={'[\n  {\n    "slug": "acme",\n    "domain": "acme.example.com",\n    "displayName": "ACME GmbH",\n    "activeComponents": ["PageHero", "Text"],\n    "activeRecordTypes": [],\n    "adminEmail": "ops@acme.example.com"\n  }\n]'}
+						placeholder={'[\n  {\n    "slug": "acme",\n    "domain": "acme.example.com",\n    "displayName": "ACME GmbH",\n    "activeComponents": ["Hero", "Section"],\n    "activeRecordTypes": [],\n    "adminEmail": "ops@acme.example.com"\n  }\n]'}
 						class="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-cyan-500 disabled:opacity-50 font-mono"
 					></textarea>
 					<p class="text-[10px] text-zinc-600">One entry per site. Picking a seed pre-fills this from its <code class="bg-zinc-800 px-1 rounded">meta.json</code> <code class="bg-zinc-800 px-1 rounded">suggestedTenants</code> — edit, add more, or paste your own.</p>

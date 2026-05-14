@@ -53,7 +53,9 @@ const variantClass: Record<string, string> = {
   soft: 'btn-soft',
   subtle: 'btn-subtle',
   ghost: 'btn-ghost',
-  link: 'btn-link'
+  link: 'btn-link',
+  'outline-white': 'btn-outline-white',
+  'white-solid': 'btn-white-solid'
 }
 
 const cssVars = computed(() => ({
@@ -146,4 +148,26 @@ const cssVars = computed(() => ({
   padding: 0;
 }
 .btn-link:hover { opacity: 0.8; }
+
+/* On-dark variants from the Claude design — used on hero overlays. */
+.btn-outline-white {
+  background: transparent;
+  color: #fff;
+  border: 2px solid #fff;
+}
+.btn-outline-white:hover {
+  background: #fff;
+  color: #111;
+}
+
+.btn-white-solid {
+  background: #fff;
+  color: #111;
+  border: 2px solid #fff;
+}
+.btn-white-solid:hover {
+  background: var(--btn-color);
+  color: #fff;
+  border-color: var(--btn-color);
+}
 </style>

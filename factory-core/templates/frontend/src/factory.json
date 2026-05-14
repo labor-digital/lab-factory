@@ -1,7 +1,23 @@
 {
 	"core_version": "1.0.0",
-	"active_components": [],
-	"active_record_types": [],
+	"active_components": [
+		"Hero",
+		"Section",
+		"Teaser",
+		"ImgSlider",
+		"Cta",
+		"Stats",
+		"Logowall",
+		"Features",
+		"Faq",
+		"Downloads",
+		"Header",
+		"Footer",
+		"Testimonials"
+	],
+	"active_record_types": [
+		"Property"
+	],
 	"settings": {
 		"colors": {
 			"primary": "blue",

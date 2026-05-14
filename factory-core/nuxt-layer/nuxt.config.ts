@@ -8,5 +8,8 @@ export default defineNuxtConfig({
     '@t3headless/nuxt-typo3',
     '@nuxt/image',
     resolve(layerDir, 'lib/register-ce-global')
+  ],
+  css: [
+    resolve(layerDir, 'assets/css/tokens.css')
   ]
 })

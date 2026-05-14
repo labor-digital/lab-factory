@@ -1,5 +1,5 @@
 // Helpers that wrap plain playground values into the TYPO3-headless JSON shape
-// consumed by BasePageHero / BasePageSection via parseContent.ts.
+// consumed by BaseHero / BaseSection / etc. via parseContent.ts.
 //
 // - TYPO3 Select fields arrive as single-element arrays: ['primary']
 // - Booleans arrive as '1' / '0' strings

@@ -29,9 +29,9 @@ export const DEFAULT_SETTINGS: FactorySettings = {
 export const DEFAULT_CONFIG: PipelineConfig = {
 	factoryCorePath: './factory-core',
 	testProjectName: 'test-client-auto',
-	componentsToTest: ['PageHero', 'Text'],
+	componentsToTest: ['Hero', 'Section'],
 	activeRecordTypes: [],
-	homeElements: ['PageHero', 'Header', 'Text'],
+	homeElements: ['Header', 'Hero', 'Section'],
 	seedTemplate: '',
 	typo3AdminUser: 'labor',
 	typo3AdminPassword: 'Password1!',
@@ -57,7 +57,7 @@ export const DEFAULT_CONFIG: PipelineConfig = {
 			slug: 'heckelsmueller-test-1',
 			domain: 'heckelsmueller-test-1-frontend.fly.dev',
 			displayName: 'Heckelsmüller Staging',
-			activeComponents: ['PageHero', 'PageSection', 'TextSlider', 'ReferenceList'],
+			activeComponents: ['Hero', 'Section', 'ImgSlider', 'Teaser', 'Cta', 'Features', 'Faq', 'Stats', 'Testimonials', 'Logowall', 'Downloads', 'Header', 'Footer'],
 			activeRecordTypes: ['Property'],
 			adminEmail: 'k.martini@labor.digital'
 		}

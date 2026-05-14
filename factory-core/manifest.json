@@ -4,157 +4,99 @@
 		"composer_dependencies": [],
 		"npm_dependencies": [
 			"@iconify/vue"
-		],
-		"nuxt_ui": false
+		]
 	},
-	"PageHero": {
+	"Hero": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
 		"npm_dependencies": [
 			"@splidejs/vue-splide",
 			"@iconify/vue"
-		],
-		"nuxt_ui": false
+		]
 	},
-	"PageSection": {
+	"Section": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
 		"npm_dependencies": [
 			"@splidejs/vue-splide",
 			"@iconify/vue"
-		],
-		"nuxt_ui": false
+		]
 	},
-	"TextSlider": {
+	"ImgSlider": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
 		"npm_dependencies": [
 			"@splidejs/vue-splide",
 			"@iconify/vue"
-		],
-		"nuxt_ui": false
+		]
 	},
-	"ReferenceList": {
+	"Teaser": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
 		"npm_dependencies": [
 			"@splidejs/vue-splide",
 			"@iconify/vue"
-		],
-		"nuxt_ui": false
+		]
 	},
-	"PageFeature": {
+	"Cta": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
 		"npm_dependencies": [
-			"@nuxt/ui"
-		],
-		"nuxt_ui": true
+			"@iconify/vue"
+		]
 	},
-	"PageGrid": {
+	"Stats": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": []
+	},
+	"Logowall": {
+		"version": "1.0.0",
+		"composer_dependencies": [],
+		"npm_dependencies": []
+	},
+	"Features": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
 		"npm_dependencies": [
-			"@nuxt/ui"
-		],
-		"nuxt_ui": true
+			"@iconify/vue"
+		]
 	},
-	"PageCta": {
+	"Faq": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
-		"npm_dependencies": [
-			"@nuxt/ui"
-		],
-		"nuxt_ui": true
+		"npm_dependencies": []
 	},
-	"PageLogos": {
+	"Downloads": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
-		"npm_dependencies": [
-			"@nuxt/ui"
-		],
-		"nuxt_ui": true
-	},
-	"Accordion": {
-		"version": "1.0.0",
-		"composer_dependencies": [],
-		"npm_dependencies": [
-			"@nuxt/ui"
-		],
-		"nuxt_ui": true
-	},
-	"Carousel": {
-		"version": "1.0.0",
-		"composer_dependencies": [],
-		"npm_dependencies": [
-			"@nuxt/ui"
-		],
-		"nuxt_ui": true
-	},
-	"ButtonGroup": {
-		"version": "1.0.0",
-		"composer_dependencies": [],
-		"npm_dependencies": [
-			"@nuxt/ui"
-		],
-		"nuxt_ui": true
-	},
-	"Table": {
-		"version": "1.0.0",
-		"composer_dependencies": [],
-		"npm_dependencies": [
-			"@nuxt/ui"
-		],
-		"nuxt_ui": true
-	},
-	"Text": {
-		"version": "1.0.0",
-		"composer_dependencies": [],
-		"npm_dependencies": [],
-		"nuxt_ui": false
+		"npm_dependencies": []
 	},
 	"Header": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
 		"npm_dependencies": [
-			"@nuxt/ui"
-		],
-		"nuxt_ui": true
+			"@iconify/vue"
+		]
 	},
-	"Separator": {
+	"Footer": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
 		"npm_dependencies": [
-			"@nuxt/ui"
-		],
-		"nuxt_ui": true
+			"@iconify/vue"
+		]
 	},
-	"PageContact": {
+	"Testimonials": {
 		"version": "1.0.0",
 		"composer_dependencies": [],
-		"npm_dependencies": [
-			"@nuxt/ui"
-		],
-		"nuxt_ui": true
-	},
-	"BlogPosts": {
-		"version": "1.0.0",
-		"composer_dependencies": [
-			"georgringer/news:^11.4"
-		],
-		"npm_dependencies": [
-			"@nuxt/ui",
-			"@t3headless/nuxt-typo3-news:^2.0"
-		],
-		"nuxt_ui": true
+		"npm_dependencies": []
 	},
 	"record_types": {
 		"Property": {
 			"version": "1.0.0",
 			"composer_dependencies": [],
 			"npm_dependencies": [],
-			"typo3_table": "tx_factorycore_property",
-			"nuxt_ui": false
+			"typo3_table": "tx_factorycore_property"
 		}
 	}
 }
