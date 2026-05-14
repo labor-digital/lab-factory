@@ -108,6 +108,30 @@ export async function getTenant(baseUrl: string, token: string, slug: string): P
 	}
 }
 
+/**
+ * Shape returned by the multitenant API's `describe()` per tenant.
+ * Mirrors `factory-core/typo3-multitenant-api/Classes/Controller/TenantController.php::describe()`.
+ */
+export interface TenantSummary {
+	slug: string;
+	status: string;
+	domain: string | null;
+	core_version: string;
+	active_components: string[];
+	active_record_types: string[];
+	settings: Record<string, unknown>;
+}
+
+export async function listTenants(baseUrl: string, token: string): Promise<TenantSummary[]> {
+	const base = ensureBaseUrl(baseUrl);
+	const res = await fetch(`${base}/api/multitenant/tenants`, { headers: authHeaders(token) });
+	if (!res.ok) {
+		throw new StagingApiError(`GET /tenants returned ${res.status}`, res.status);
+	}
+	const data = (await res.json()) as { tenants?: TenantSummary[] };
+	return Array.isArray(data.tenants) ? data.tenants : [];
+}
+
 export interface SeedContentRequest {
 	elements: Array<{ component?: string; data?: Record<string, unknown> }>;
 	// Optional subpages — each entry becomes a `pages` row under the

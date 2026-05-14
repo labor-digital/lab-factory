@@ -1,42 +1,55 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { listSeeds, loadSeedPayload, deleteLibrarySeed } from '$lib/seeds/store.js';
-import { DEFAULT_CONFIG } from '$lib/pipeline/config.js';
+import { deleteSeed, loadSeedPayloadFromSupabase, updateSeed } from '$lib/seeds/supabaseStore.js';
+import type { SeedPayload, SeedStatus } from '$lib/supabase/types.js';
+import type { TenantSpec } from '$lib/pipeline/types.js';
 
-function options(url: URL) {
-	return {
-		seedsRepoPath: url.searchParams.get('seedsRepoPath') ?? DEFAULT_CONFIG.seedsRepoPath,
-		factoryCorePath: url.searchParams.get('factoryCorePath') ?? DEFAULT_CONFIG.factoryCorePath
-	};
-}
-
-export const GET: RequestHandler = async ({ params, url }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	const slug = params.slug ?? '';
 	if (slug === '') throw error(400, 'missing_slug');
-
-	const opts = options(url);
-	const { entries } = await listSeeds(opts);
-	const entry = entries.find((e) => e.slug === slug);
-	if (!entry) throw error(404, 'seed_not_found');
-
-	const payload = await loadSeedPayload(opts, entry.source, entry.slug);
-	return json({ entry, payload });
+	const result = await loadSeedPayloadFromSupabase(locals.supabase, slug);
+	if (!result) throw error(404, 'seed_not_found');
+	return json(result);
 };
 
-export const DELETE: RequestHandler = async ({ params, url }) => {
+interface PatchBody {
+	name?: string;
+	description?: string;
+	coreVersion?: string;
+	payload?: SeedPayload;
+	suggestedTenants?: TenantSpec[];
+	clientId?: string | null;
+	status?: SeedStatus;
+}
+
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	const slug = params.slug ?? '';
 	if (slug === '') throw error(400, 'missing_slug');
-
-	const opts = options(url);
-	const { entries } = await listSeeds(opts);
-	const entry = entries.find((e) => e.slug === slug);
-	if (!entry) throw error(404, 'seed_not_found');
-	if (entry.source !== 'library') throw error(400, 'cannot_delete_builtin_seed');
-
+	let body: PatchBody;
 	try {
-		await deleteLibrarySeed(opts, slug);
+		body = (await request.json()) as PatchBody;
+	} catch {
+		throw error(400, 'invalid_json');
+	}
+	try {
+		const entry = await updateSeed(locals.supabase, slug, body);
+		return json({ status: 'updated', entry });
 	} catch (err) {
-		throw error(500, (err as Error).message);
+		const msg = (err as Error).message;
+		const code = msg === 'seed_not_found' ? 404 : msg === 'cannot_modify_builtin_seed' ? 400 : 500;
+		throw error(code, msg);
+	}
+};
+
+export const DELETE: RequestHandler = async ({ params, locals }) => {
+	const slug = params.slug ?? '';
+	if (slug === '') throw error(400, 'missing_slug');
+	try {
+		await deleteSeed(locals.supabase, slug);
+	} catch (err) {
+		const msg = (err as Error).message;
+		const code = msg === 'seed_not_found' ? 404 : msg === 'cannot_delete_builtin_seed' ? 400 : 500;
+		throw error(code, msg);
 	}
 	return json({ status: 'deleted', slug });
 };

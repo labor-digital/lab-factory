@@ -86,6 +86,10 @@ export interface SeedLibraryEntry {
 	createdAt?: string;
 	lastUsedAt?: string;
 	origin: SeedOrigin;
+	/** Supabase lifecycle state. Builtins are always treated as published. */
+	status?: 'draft' | 'published' | 'archived';
+	/** Owning client (Supabase clients.id). Null/undefined = generic. */
+	clientId?: string | null;
 	/**
 	 * Tenants this seed naturally maps to (from meta.json.suggestedTenants).
 	 * Pipeline-app pre-fills its `tenants[]` field from this when the operator
