@@ -66,18 +66,6 @@
 				</div>
 
 				<div class="space-y-1">
-					<label for="labCli" class="text-xs text-zinc-400 uppercase tracking-wider">Lab CLI Binary</label>
-					<input
-						id="labCli"
-						type="text"
-						value={config.labCliBin}
-						oninput={(e) => update('labCliBin', e.currentTarget.value)}
-						{disabled}
-						class="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
-					/>
-				</div>
-
-				<div class="space-y-1">
 					<label for="factoryCore" class="text-xs text-zinc-400 uppercase tracking-wider">Factory Core Path</label>
 					<input
 						id="factoryCore"

@@ -3,6 +3,7 @@ import { rm, symlink, unlink, appendFile, stat, readFile, writeFile, mkdir } fro
 import { resolve, dirname } from 'node:path';
 import type { PipelineConfig, StepEvent, PhaseId, TenantSpec } from './types.js';
 import { assertFileExists, assertJsonContains } from './assertions.js';
+import { addComponent, createProject, FactoryError } from '../factory/index.js';
 
 type Emit = (event: StepEvent) => void;
 
@@ -38,11 +39,6 @@ async function getTemplateRecordTypes(factoryCorePath: string, templateSlug: str
 	} catch {
 		return [];
 	}
-}
-
-function parseLabCliBin(bin: string): { cmd: string; args: string[] } {
-	const parts = bin.split(/\s+/);
-	return { cmd: parts[0], args: parts.slice(1) };
 }
 
 async function runCommand(
@@ -243,7 +239,6 @@ async function scaffoldPhase(
 ): Promise<void> {
 	emit({ type: 'phase:start', phase: 1, phaseLabel: 'Scaffolding', timestamp: Date.now() });
 
-	const { cmd, args: cliArgs } = parseLabCliBin(config.labCliBin);
 	const factoryCoreAbs = resolve(projectRoot, config.factoryCorePath);
 	const templatePath = resolve(factoryCoreAbs, 'templates');
 
@@ -251,33 +246,28 @@ async function scaffoldPhase(
 	const frontendDomain = config.typo3ApiBaseUrl.replace(/^https?:\/\//, '').replace(/-bac\./, '-fro.');
 	const cookieDomain = '.' + frontendDomain.split('.').slice(1).join('.');
 
-	// Run factory:create
-	await runCommand(
-		cmd,
-		[
-			...cliArgs,
-			'factory:create',
-			config.testProjectName,
-			'--template-path',
-			templatePath,
-			'--force',
-			'--json',
-			'--secret',
-			`APP_ENCRYPTION_KEY=${config.appEncryptionKey}`,
-			'--secret',
-			`APP_INSTALL_TOOL_PASSWORD=${config.appInstallToolPassword}`,
-			'--secret',
-			`TYPO3_API_BASE_URL=${config.typo3ApiBaseUrl}`,
-			'--secret',
-			`APP_FRONTEND_DOMAIN=${frontendDomain}`,
-			'--secret',
-			`APP_COOKIE_DOMAIN=${cookieDomain}`
-		],
-		dirname(projectDir),
-		emit,
-		'scaffold-create',
-		signal
-	);
+	// In-process factory:create. Throws on failure; pipeline:error propagates
+	// to the SSE channel via the outer runner.
+	try {
+		await createProject(
+			{
+				projectName: config.testProjectName,
+				targetDir: projectDir,
+				templatePath,
+				force: true,
+				secrets: {
+					APP_ENCRYPTION_KEY: config.appEncryptionKey,
+					APP_INSTALL_TOOL_PASSWORD: config.appInstallToolPassword,
+					TYPO3_API_BASE_URL: config.typo3ApiBaseUrl,
+					APP_FRONTEND_DOMAIN: frontendDomain,
+					APP_COOKIE_DOMAIN: cookieDomain
+				}
+			},
+			emit
+		);
+	} catch (e) {
+		throw e instanceof FactoryError ? new Error(`factory:create failed: ${e.message}`) : e;
+	}
 
 	// Assert scaffolded files exist
 	let ok = true;
@@ -426,35 +416,17 @@ async function componentPhase(
 ): Promise<void> {
 	emit({ type: 'phase:start', phase: 2, phaseLabel: 'Component Injection', timestamp: Date.now() });
 
-	const { cmd, args: cliArgs } = parseLabCliBin(config.labCliBin);
 	const backendSrc = resolve(projectDir, 'backend/app/src');
 	const frontendSrc = resolve(projectDir, 'frontend/app/src');
 
 	for (const component of config.componentsToTest) {
-		// Backend
-		const backendResult = await runCommand(
-			cmd,
-			[...cliArgs, 'factory:add', component, '--json'],
-			backendSrc,
-			emit,
-			`inject-${component.toLowerCase()}-backend`,
-			signal
-		);
-		if (backendResult.includes('"status":"error"')) {
-			throw new Error(`factory:add ${component} failed (backend)`);
-		}
-
-		// Frontend
-		const frontendResult = await runCommand(
-			cmd,
-			[...cliArgs, 'factory:add', component, '--json'],
-			frontendSrc,
-			emit,
-			`inject-${component.toLowerCase()}-frontend`,
-			signal
-		);
-		if (frontendResult.includes('"status":"error"')) {
-			throw new Error(`factory:add ${component} failed (frontend)`);
+		try {
+			await addComponent({ componentName: component, cwd: backendSrc }, emit, signal);
+			await addComponent({ componentName: component, cwd: frontendSrc }, emit, signal);
+		} catch (e) {
+			throw e instanceof FactoryError
+				? new Error(`factory:add ${component} failed: ${e.message}`)
+				: e;
 		}
 
 		emit({
@@ -515,13 +487,12 @@ async function dockerPhase(
 		await authenticateSudo(config.sudoPassword, emit, signal);
 	}
 
-	const { cmd, args: cliArgs } = parseLabCliBin(config.labCliBin);
 	const backendApp = resolve(projectDir, 'backend/app');
 	const frontendApp = resolve(projectDir, 'frontend/app');
 
-	// Start containers
-	await runCommand(cmd, [...cliArgs, 'up', '--yes', '--import'], backendApp, emit, 'docker-backend-up', signal);
-	await runCommand(cmd, [...cliArgs, 'up', '--yes'], frontendApp, emit, 'docker-frontend-up', signal);
+	// Start containers — `lab` must be on PATH (npm install -g labor-digital/lab-cli)
+	await runCommand('lab', ['up', '--yes', '--import'], backendApp, emit, 'docker-backend-up', signal);
+	await runCommand('lab', ['up', '--yes'], frontendApp, emit, 'docker-frontend-up', signal);
 
 	// Wait for composer install
 	const waitStepId = 'docker-composer-wait';

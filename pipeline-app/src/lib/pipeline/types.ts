@@ -207,7 +207,6 @@ export interface TenantSpec {
 }
 
 export interface PipelineConfig {
-	labCliBin: string;
 	factoryCorePath: string;
 	testProjectName: string;
 	componentsToTest: string[];

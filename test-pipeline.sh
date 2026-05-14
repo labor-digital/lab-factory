@@ -11,7 +11,7 @@ set -e
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-LAB_CLI_BIN="node /Users/kim/Work/Labor/Lab-Cli/lab-cli/lib/index.js"    # Path to lab-cli binary
+FACTORY_CLI="npx --prefix ./pipeline-app tsx ./pipeline-app/bin/factory.ts"  # In-process port of `lab factory:*` (DL: lab-cli→pipeline-app migration)
 FACTORY_CORE_PATH="./factory-core"              # Relative path to factory-core
 PROJECTS_DIR="projects"                         # Gitignored parent dir for scaffolded clients
 TEST_PROJECT_NAME="test-client-auto"            # Generated project folder name
@@ -166,11 +166,10 @@ APP_COOKIE_DOMAIN=".${APP_FRONTEND_DOMAIN#*.}"
 mkdir -p "$PROJECTS_DIR"
 FACTORY_CORE_TEMPLATES_ABS="$(cd "$FACTORY_CORE_PATH/templates" && pwd)"
 pushd "$PROJECTS_DIR" > /dev/null
-fake_term "lab factory:create $TEST_PROJECT_NAME --force --json --secret APP_ENCRYPTION_KEY=... --secret APP_INSTALL_TOOL_PASSWORD=... --secret TYPO3_API_BASE_URL=... --secret APP_FRONTEND_DOMAIN=... --secret APP_COOKIE_DOMAIN=..." \
-	$LAB_CLI_BIN factory:create "$TEST_PROJECT_NAME" \
+fake_term "factory create $TEST_PROJECT_NAME --force --secret APP_ENCRYPTION_KEY=... --secret APP_INSTALL_TOOL_PASSWORD=... --secret TYPO3_API_BASE_URL=... --secret APP_FRONTEND_DOMAIN=... --secret APP_COOKIE_DOMAIN=..." \
+	$FACTORY_CLI create "$TEST_PROJECT_NAME" \
 	--template-path "$FACTORY_CORE_TEMPLATES_ABS" \
 	--force \
-	--json \
 	--secret "APP_ENCRYPTION_KEY=$APP_ENCRYPTION_KEY" \
 	--secret "APP_INSTALL_TOOL_PASSWORD=$APP_INSTALL_TOOL_PASSWORD" \
 	--secret "TYPO3_API_BASE_URL=$TYPO3_API_BASE_URL" \
@@ -203,23 +202,19 @@ pass "Phase 1 complete -- project scaffolded"
 phase_header 2 "Component Injection" "🧩"
 
 for component in "${COMPONENTS_TO_TEST[@]}"; do
-	# Backend (CLI needs composer.json in cwd)
-	pushd "$PROJECTS_DIR/$TEST_PROJECT_NAME/backend/app/src" > /dev/null
-	fake_term_capture "lab factory:add $component --json  # backend"
-	result=$($LAB_CLI_BIN factory:add "$component" --json)
+	# Backend (CLI infers context from composer.json in cwd)
+	fake_term_capture "factory add $component --cwd backend/app/src  # backend"
+	result=$($FACTORY_CLI add "$component" --cwd "$PROJECTS_DIR/$TEST_PROJECT_NAME/backend/app/src")
 	echo "$result" | while IFS= read -r line; do fake_term_line "$line"; done
-	echo "$result" | grep -q '"status":"error"' && { fake_term_close; fail "factory:add $component failed (backend)"; }
+	echo "$result" | grep -q '"status":"error"' && { fake_term_close; fail "factory add $component failed (backend)"; }
 	fake_term_close
-	popd > /dev/null
 
-	# Frontend (CLI needs package.json in cwd)
-	pushd "$PROJECTS_DIR/$TEST_PROJECT_NAME/frontend/app/src" > /dev/null
-	fake_term_capture "lab factory:add $component --json  # frontend"
-	result=$($LAB_CLI_BIN factory:add "$component" --json)
+	# Frontend (CLI infers context from package.json in cwd)
+	fake_term_capture "factory add $component --cwd frontend/app/src  # frontend"
+	result=$($FACTORY_CLI add "$component" --cwd "$PROJECTS_DIR/$TEST_PROJECT_NAME/frontend/app/src")
 	echo "$result" | while IFS= read -r line; do fake_term_line "$line"; done
-	echo "$result" | grep -q '"status":"error"' && { fake_term_close; fail "factory:add $component failed (frontend)"; }
+	echo "$result" | grep -q '"status":"error"' && { fake_term_close; fail "factory add $component failed (frontend)"; }
 	fake_term_close
-	popd > /dev/null
 
 	pass "Injected $component into backend + frontend"
 done
@@ -248,11 +243,11 @@ if [ "$1" == "--full" ]; then
 
 	# Start containers via lab-cli
 	pushd "$BACKEND_DIR" > /dev/null
-	fake_term "lab up --yes --import  # backend" $LAB_CLI_BIN up --yes --import
+	fake_term "lab up --yes --import  # backend" lab up --yes --import
 	popd > /dev/null
 
 	pushd "$FRONTEND_DIR" > /dev/null
-	fake_term "lab up --yes  # frontend" $LAB_CLI_BIN up --yes
+	fake_term "lab up --yes  # frontend" lab up --yes
 	popd > /dev/null
 
 	# Wait for composer install to complete inside the container

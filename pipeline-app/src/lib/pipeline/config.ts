@@ -27,7 +27,6 @@ export const DEFAULT_SETTINGS: FactorySettings = {
 };
 
 export const DEFAULT_CONFIG: PipelineConfig = {
-	labCliBin: 'node /Users/kim/Work/Labor/Lab-Cli/lab-cli/lib/index.js',
 	factoryCorePath: './factory-core',
 	testProjectName: 'test-client-auto',
 	componentsToTest: ['PageHero', 'Text'],
