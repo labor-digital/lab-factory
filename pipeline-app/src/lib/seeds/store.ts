@@ -190,7 +190,12 @@ function libraryEntry(
 		source: 'library',
 		name: meta.name ?? seed.name ?? slug,
 		description: meta.description ?? seed.description ?? '',
-		coreVersion: meta.coreVersion ?? seed.core_version ?? '',
+		// seed.json.core_version is the source of truth: it's what the
+		// runtime version-compat check reads, and what the API receives.
+		// meta.json.coreVersion was historically duplicated for picker
+		// display and drifted easily; fall back to it only when seed.json
+		// is silent (older library entries that pre-date this convention).
+		coreVersion: seed.core_version ?? meta.coreVersion ?? '',
 		components,
 		recordTypes,
 		settings: seed.settings,
