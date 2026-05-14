@@ -1,0 +1,41 @@
+# fly.toml — pipeline-app (Factory dashboard, DL #017)
+#
+# Deploy with:
+#   flyctl deploy --remote-only
+#
+# Required secrets (set once with `flyctl secrets set …`):
+#   SUPABASE_URL, SUPABASE_PUBLISH_KEY, SUPABASE_SECRET_KEY
+#   STAGING_API_TOKEN, FLY_API_TOKEN, BITBUCKET_TOKEN
+#
+# Wake-on-request: same pattern as the client frontend fix in 213302f —
+# `auto_stop_machines = "stop"` over `suspend`, with an HTTP health check so
+# the fly proxy waits for the Node server to serve before forwarding requests.
+
+app = "factory-pipeline-app"
+primary_region = "fra"
+
+[build]
+
+[env]
+  PORT = "3100"
+  HOST = "0.0.0.0"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3100
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/login"
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "1gb"
+  cpus = 2
