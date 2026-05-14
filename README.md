@@ -70,6 +70,16 @@ See `.design-log/004-pipeline-app.md` for the full design.
 
 ## Development
 
+### Prerequisites
+
+The pipeline (phase 3) and day-to-day backend work both call `lab up`, so install [`lab-cli`](https://github.com/labor-digital/lab-cli) globally first. While the `factory:*` extraction is in flight, install from the `factory-extracted` branch via GitHub's tarball URL (not `github:` shorthand — npm's git fetcher races on `ssh2`'s native postinstall during global installs):
+
+```bash
+npm install -g 'https://codeload.github.com/labor-digital/lab-cli/tar.gz/factory-extracted'
+```
+
+Verify with `lab --version` (should print `3.16.6`) and `lab --help` (should not list `factory:*`, `add-component`, or `upgrade`). Once the branch merges back, this falls back to a regular `npm install -g @labor-digital/lab-cli`.
+
 ### Scaffolding a new client project
 
 Use `pipeline-app` (or `test-pipeline.sh --full` for a headless run). Both consume `factory-core/templates/`, replace placeholders, wire `factory-core` as a Composer path repository and a Nuxt layer, and boot the Docker stack.
