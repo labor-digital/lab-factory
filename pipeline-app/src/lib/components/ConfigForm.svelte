@@ -245,10 +245,10 @@
 							value={config.sharedInstanceRepoPath}
 							oninput={(e) => update('sharedInstanceRepoPath', e.currentTarget.value)}
 							{disabled}
-							placeholder="./shared-tenant/backend/app"
+							placeholder="../labor-factory-multitenant"
 							class="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-cyan-500 disabled:opacity-50 font-mono"
 						/>
-						<p class="text-[10px] text-zinc-600">Directory containing the shared instance's <code class="bg-zinc-800 px-1 rounded">docker-compose.yml</code>. Defaults to the local <code class="bg-zinc-800 px-1 rounded">shared-tenant/backend/app</code> scaffold.</p>
+						<p class="text-[10px] text-zinc-600">Directory containing the shared instance's <code class="bg-zinc-800 px-1 rounded">docker-compose.yml</code>. Defaults to the sibling-cloned <code class="bg-zinc-800 px-1 rounded">../labor-factory-multitenant</code> deploy repo.</p>
 					</div>
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<label class="flex items-center gap-2 cursor-pointer">
