@@ -42,7 +42,7 @@
 	}
 
 	function onuse(entry: SeedLibraryEntry) {
-		goto(`/?seed=${encodeURIComponent(entry.slug)}&source=${entry.source}`);
+		goto(`/pipeline/local?seed=${encodeURIComponent(entry.slug)}&source=${entry.source}`);
 	}
 
 	async function onreseed(entry: SeedLibraryEntry) {
