@@ -22,7 +22,10 @@ services:
       - ${APP_OPT_DIR}/permissions.sh:/opt/project/permissions.sh
       - ${APP_ROOT_DIR}/.env.app:/opt/.env.app
       # Mount factory-core nuxt-layer and factory.json
-      - ${APP_ROOT_DIR}../../../factory-core/nuxt-layer:/var/www/modules/nuxt-layer
+      # factory-core is a symlink created by pipeline-app's scaffoldPhase
+      # (pointing at the absolute monorepo factory-core), so this stays
+      # layout-agnostic even when the project lives under projects/<name>/.
+      - ${APP_ROOT_DIR}factory-core/nuxt-layer:/var/www/modules/nuxt-layer
       - ${APP_ROOT_DIR}../../factory.json:/var/www/modules/factory.json
 networks:
   backend:

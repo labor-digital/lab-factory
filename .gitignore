@@ -43,6 +43,9 @@ ssh/
 import/
 test-*/
 
+# Scaffolded client projects produced by the pipeline-app
+projects/
+
 # svelte
 kit
 .svelte-kit/

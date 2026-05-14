@@ -13,6 +13,7 @@ set -e
 # ---------------------------------------------------------------------------
 LAB_CLI_BIN="node /Users/kim/Work/Labor/Lab-Cli/lab-cli/lib/index.js"    # Path to lab-cli binary
 FACTORY_CORE_PATH="./factory-core"              # Relative path to factory-core
+PROJECTS_DIR="projects"                         # Gitignored parent dir for scaffolded clients
 TEST_PROJECT_NAME="test-client-auto"            # Generated project folder name
 COMPONENTS_TO_TEST=("PageHero" "Text")          # Components to inject
 TYPO3_ADMIN_USER='labor'                        # TYPO3 admin user for setup
@@ -135,20 +136,20 @@ echo -e "  ${DIM}Test Pipeline — E2E scaffolding & component pipeline${NC}"
 # ---------------------------------------------------------------------------
 phase_header 0 "Teardown" "🧹"
 
-if [ -d "$TEST_PROJECT_NAME" ]; then
+if [ -d "$PROJECTS_DIR/$TEST_PROJECT_NAME" ]; then
 	# Stop backend containers and remove volumes
-	if [ -f "$TEST_PROJECT_NAME/backend/app/docker-compose.yml" ]; then
-		pushd "$TEST_PROJECT_NAME/backend/app" > /dev/null
+	if [ -f "$PROJECTS_DIR/$TEST_PROJECT_NAME/backend/app/docker-compose.yml" ]; then
+		pushd "$PROJECTS_DIR/$TEST_PROJECT_NAME/backend/app" > /dev/null
 		fake_term "docker compose down -v" docker compose down -v 2>/dev/null || true
 		popd > /dev/null
 	fi
 	# Stop frontend containers and remove volumes
-	if [ -f "$TEST_PROJECT_NAME/frontend/app/docker-compose.yml" ]; then
-		pushd "$TEST_PROJECT_NAME/frontend/app" > /dev/null
+	if [ -f "$PROJECTS_DIR/$TEST_PROJECT_NAME/frontend/app/docker-compose.yml" ]; then
+		pushd "$PROJECTS_DIR/$TEST_PROJECT_NAME/frontend/app" > /dev/null
 		fake_term "docker compose down -v" docker compose down -v 2>/dev/null || true
 		popd > /dev/null
 	fi
-	fake_term "rm -rf $TEST_PROJECT_NAME" rm -rf "$TEST_PROJECT_NAME"
+	fake_term "rm -rf $TEST_PROJECT_NAME" rm -rf "$PROJECTS_DIR/$TEST_PROJECT_NAME"
 fi
 pass "Clean slate ready"
 
@@ -162,9 +163,12 @@ APP_FRONTEND_DOMAIN="${TYPO3_API_BASE_URL#https://}"
 APP_FRONTEND_DOMAIN="${APP_FRONTEND_DOMAIN/-bac./-fro.}"
 APP_COOKIE_DOMAIN=".${APP_FRONTEND_DOMAIN#*.}"
 
+mkdir -p "$PROJECTS_DIR"
+FACTORY_CORE_TEMPLATES_ABS="$(cd "$FACTORY_CORE_PATH/templates" && pwd)"
+pushd "$PROJECTS_DIR" > /dev/null
 fake_term "lab factory:create $TEST_PROJECT_NAME --force --json --secret APP_ENCRYPTION_KEY=... --secret APP_INSTALL_TOOL_PASSWORD=... --secret TYPO3_API_BASE_URL=... --secret APP_FRONTEND_DOMAIN=... --secret APP_COOKIE_DOMAIN=..." \
 	$LAB_CLI_BIN factory:create "$TEST_PROJECT_NAME" \
-	--template-path "$FACTORY_CORE_PATH/templates" \
+	--template-path "$FACTORY_CORE_TEMPLATES_ABS" \
 	--force \
 	--json \
 	--secret "APP_ENCRYPTION_KEY=$APP_ENCRYPTION_KEY" \
@@ -172,22 +176,23 @@ fake_term "lab factory:create $TEST_PROJECT_NAME --force --json --secret APP_ENC
 	--secret "TYPO3_API_BASE_URL=$TYPO3_API_BASE_URL" \
 	--secret "APP_FRONTEND_DOMAIN=$APP_FRONTEND_DOMAIN" \
 	--secret "APP_COOKIE_DOMAIN=$APP_COOKIE_DOMAIN"
+popd > /dev/null
 
-assert_file_exists "$TEST_PROJECT_NAME/backend/app/src/factory.json" "backend factory.json"
-assert_file_exists "$TEST_PROJECT_NAME/backend/app/src/composer.json" "backend composer.json"
-assert_file_exists "$TEST_PROJECT_NAME/frontend/app/src/factory.json" "frontend factory.json"
+assert_file_exists "$PROJECTS_DIR/$TEST_PROJECT_NAME/backend/app/src/factory.json" "backend factory.json"
+assert_file_exists "$PROJECTS_DIR/$TEST_PROJECT_NAME/backend/app/src/composer.json" "backend composer.json"
+assert_file_exists "$PROJECTS_DIR/$TEST_PROJECT_NAME/frontend/app/src/factory.json" "frontend factory.json"
 
 # Symlink factory-core so the CLI can resolve the manifest
 # CLI looks for ../factory-core/manifest.json relative to cwd (src/)
 FACTORY_CORE_ABS="$(cd "$FACTORY_CORE_PATH" && pwd)"
 fake_term "ln -sfn factory-core -> backend + frontend" \
-	ln -sfn "$FACTORY_CORE_ABS" "$TEST_PROJECT_NAME/backend/app/factory-core"
-ln -sfn "$FACTORY_CORE_ABS" "$TEST_PROJECT_NAME/frontend/app/factory-core"
+	ln -sfn "$FACTORY_CORE_ABS" "$PROJECTS_DIR/$TEST_PROJECT_NAME/backend/app/factory-core"
+ln -sfn "$FACTORY_CORE_ABS" "$PROJECTS_DIR/$TEST_PROJECT_NAME/frontend/app/factory-core"
 
 # Write TYPO3_API_BASE_URL to the frontend .env.app (secrets file mounted into the container)
 # Must NOT write to .env here — lab up needs to create .env from .env.template to populate
 # all APP_* directory variables that docker-compose.yml volume mounts require.
-echo "TYPO3_API_BASE_URL=$TYPO3_API_BASE_URL" >> "$TEST_PROJECT_NAME/frontend/app/.env.app"
+echo "TYPO3_API_BASE_URL=$TYPO3_API_BASE_URL" >> "$PROJECTS_DIR/$TEST_PROJECT_NAME/frontend/app/.env.app"
 info "Set TYPO3_API_BASE_URL=$TYPO3_API_BASE_URL in frontend .env.app"
 
 pass "Phase 1 complete -- project scaffolded"
@@ -199,7 +204,7 @@ phase_header 2 "Component Injection" "🧩"
 
 for component in "${COMPONENTS_TO_TEST[@]}"; do
 	# Backend (CLI needs composer.json in cwd)
-	pushd "$TEST_PROJECT_NAME/backend/app/src" > /dev/null
+	pushd "$PROJECTS_DIR/$TEST_PROJECT_NAME/backend/app/src" > /dev/null
 	fake_term_capture "lab factory:add $component --json  # backend"
 	result=$($LAB_CLI_BIN factory:add "$component" --json)
 	echo "$result" | while IFS= read -r line; do fake_term_line "$line"; done
@@ -208,7 +213,7 @@ for component in "${COMPONENTS_TO_TEST[@]}"; do
 	popd > /dev/null
 
 	# Frontend (CLI needs package.json in cwd)
-	pushd "$TEST_PROJECT_NAME/frontend/app/src" > /dev/null
+	pushd "$PROJECTS_DIR/$TEST_PROJECT_NAME/frontend/app/src" > /dev/null
 	fake_term_capture "lab factory:add $component --json  # frontend"
 	result=$($LAB_CLI_BIN factory:add "$component" --json)
 	echo "$result" | while IFS= read -r line; do fake_term_line "$line"; done
@@ -222,8 +227,8 @@ done
 # Verify components landed in factory.json (CLI stores PascalCase names)
 info "Verifying active_components..."
 for component in "${COMPONENTS_TO_TEST[@]}"; do
-	assert_json_contains "$TEST_PROJECT_NAME/backend/app/src/factory.json" "$component"
-	assert_json_contains "$TEST_PROJECT_NAME/frontend/app/src/factory.json" "$component"
+	assert_json_contains "$PROJECTS_DIR/$TEST_PROJECT_NAME/backend/app/src/factory.json" "$component"
+	assert_json_contains "$PROJECTS_DIR/$TEST_PROJECT_NAME/frontend/app/src/factory.json" "$component"
 done
 
 pass "Phase 2 complete -- all components injected and verified"
@@ -234,8 +239,8 @@ pass "Phase 2 complete -- all components injected and verified"
 if [ "$1" == "--full" ]; then
 	phase_header 3 "Docker & Bootstrapping" "🐳"
 
-	BACKEND_DIR="$TEST_PROJECT_NAME/backend/app"
-	FRONTEND_DIR="$TEST_PROJECT_NAME/frontend/app"
+	BACKEND_DIR="$PROJECTS_DIR/$TEST_PROJECT_NAME/backend/app"
+	FRONTEND_DIR="$PROJECTS_DIR/$TEST_PROJECT_NAME/frontend/app"
 
 	# Pre-authenticate sudo so lab-cli can write /etc/hosts without blocking
 	info "Requesting sudo for hosts file access..."

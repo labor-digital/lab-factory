@@ -171,7 +171,7 @@ export async function runReseed(
 	const seedsRepoPath = overrides?.seedsRepoPath ?? DEFAULT_CONFIG.seedsRepoPath;
 	const factoryCorePath = overrides?.factoryCorePath ?? DEFAULT_CONFIG.factoryCorePath;
 	const projectName = request.projectName || DEFAULT_CONFIG.testProjectName;
-	const projectDir = resolve(factoryMonorepoRoot(), projectName);
+	const projectDir = resolve(factoryMonorepoRoot(), 'projects', projectName);
 
 	emit({ type: 'phase:start', phase: 0, phaseLabel: 'Reseed', timestamp: Date.now() });
 
