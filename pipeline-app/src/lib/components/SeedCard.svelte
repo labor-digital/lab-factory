@@ -5,10 +5,11 @@
 		entry: SeedLibraryEntry;
 		onuse: (entry: SeedLibraryEntry) => void;
 		onreseed: (entry: SeedLibraryEntry) => void;
-		ondelete: (entry: SeedLibraryEntry) => void;
+		/** Kept for back-compat with /seeds page; delete now lives on /seeds/[slug]. */
+		ondelete?: (entry: SeedLibraryEntry) => void;
 	}
 
-	let { entry, onuse, onreseed, ondelete }: Props = $props();
+	let { entry, onuse, onreseed }: Props = $props();
 
 	const colors = $derived.by(() => {
 		const c = entry.settings?.colors;
@@ -46,12 +47,21 @@
 		</div>
 		<div class="flex-1 min-w-0">
 			<div class="flex items-center gap-2">
-				<h3 class="text-sm text-zinc-100 truncate">{entry.name}</h3>
-				<span
-					class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 {entry.source === 'builtin' ? 'bg-zinc-800 text-zinc-400' : 'bg-cyan-950 text-cyan-300'}"
-				>{entry.source}</span>
+				<a
+					href={`/seeds/${encodeURIComponent(entry.slug)}`}
+					class="text-sm truncate hover:opacity-80"
+					style="color: var(--color-text-primary);"
+				>{entry.name}</a>
+				<span class="pastel-chip {entry.source === 'builtin' ? 'pastel-chip-neutral' : 'pastel-chip-cyan'}">
+					{entry.source}
+				</span>
+				{#if entry.status === 'draft'}
+					<span class="pastel-chip pastel-chip-amber">draft</span>
+				{:else if entry.status === 'archived'}
+					<span class="pastel-chip pastel-chip-neutral">archived</span>
+				{/if}
 			</div>
-			<p class="text-[11px] text-zinc-500 mt-0.5 line-clamp-2">{entry.description || '—'}</p>
+			<p class="text-[11px] line-clamp-2 mt-0.5" style="color: var(--color-text-muted);">{entry.description || '—'}</p>
 		</div>
 	</div>
 
@@ -73,24 +83,24 @@
 		</div>
 	{/if}
 
-	<div class="flex items-center gap-2 mt-auto pt-2 border-t border-zinc-900">
+	<div class="flex items-center gap-2 mt-auto pt-2" style="border-top: 1px solid var(--color-border-soft);">
 		<button
 			type="button"
-			class="text-xs px-2 py-1 rounded bg-cyan-700 text-cyan-50 hover:bg-cyan-600 transition-colors"
+			class="text-xs px-2 py-1 rounded transition-colors"
+			style="background: color-mix(in srgb, var(--color-pastel-cyan) 22%, transparent); color: var(--color-pastel-cyan);"
 			onclick={() => onuse(entry)}
 		>Use</button>
 		<button
 			type="button"
-			class="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-200 hover:bg-zinc-700 transition-colors"
+			class="text-xs px-2 py-1 rounded transition-colors"
+			style="background: var(--color-surface-hover); color: var(--color-text-secondary);"
 			onclick={() => onreseed(entry)}
 			title="Apply to a running local stack without rebuild"
 		>Apply</button>
-		{#if entry.source === 'library'}
-			<button
-				type="button"
-				class="text-xs px-2 py-1 rounded text-zinc-500 hover:text-red-400 transition-colors ml-auto"
-				onclick={() => ondelete(entry)}
-			>Delete</button>
-		{/if}
+		<a
+			href={`/seeds/${encodeURIComponent(entry.slug)}`}
+			class="text-xs px-2 py-1 rounded ml-auto transition-colors"
+			style="color: var(--color-text-muted);"
+		>Edit →</a>
 	</div>
 </div>
