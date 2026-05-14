@@ -73,5 +73,15 @@ jobs:
           cache: "npm"
           cache-dependency-path: pipeline-app/package-lock.json
       - run: npm ci
+      - name: Stub env vars for svelte-kit sync
+        # $env/static/private types are generated from what's available at
+        # sync time. CI doesn't have real Supabase credentials, but the
+        # type-check only needs the keys to exist — placeholders are fine.
+        run: |
+          cat > .env <<'EOF'
+          SUPABASE_URL=https://placeholder.supabase.co
+          SUPABASE_PUBLISH_KEY=placeholder-publishable-key
+          SUPABASE_SECRET_KEY=placeholder-service-role-key
+          EOF
       - run: npx svelte-kit sync
       - run: npx svelte-check --tsconfig ./tsconfig.json
