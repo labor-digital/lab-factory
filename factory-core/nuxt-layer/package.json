@@ -39,6 +39,7 @@
 	},
 	"files": [
 		"app.vue",
+		"assets",
 		"components",
 		"composables",
 		"layouts",
