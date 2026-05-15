@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0](https://github.com/labor-digital/lab-factory/compare/factory-nuxt-layer-v0.2.1...factory-nuxt-layer-v0.3.0) (2026-05-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **typo3-extension:** native ADD COLUMN IF NOT EXISTS + drop legacy fallbacks
+
+### Bug Fixes
+
+* **typo3-extension:** native ADD COLUMN IF NOT EXISTS + drop legacy fallbacks ([e3b9a61](https://github.com/labor-digital/lab-factory/commit/e3b9a6162858ef6221c2de0f9032a7c3ea06bdab))
+
 ## [0.2.1](https://github.com/labor-digital/lab-factory/compare/factory-nuxt-layer-v0.2.0...factory-nuxt-layer-v0.2.1) (2026-05-15)
 
 
