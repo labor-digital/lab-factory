@@ -47,9 +47,9 @@ export const DEFAULT_CONFIG: PipelineConfig = {
 	bitbucketProjectKey: '',
 	bitbucketRepoSlug: '',
 	publishBackend: true,
-	factoryCoreSource: 'local',
-	factoryCoreComposerConstraint: '^0.2',
-	factoryCoreNpmConstraint: '^0.1.0',
+	factoryCoreSource: 'npm',
+	factoryCoreComposerConstraint: '^0.11',
+	factoryCoreNpmConstraint: '^0.3',
 	deploymentMode: 'standalone',
 	sharedInstanceRepoPath: '../labor-factory-multitenant',
 	tenants: [
