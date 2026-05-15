@@ -203,8 +203,11 @@ export type FactoryCoreSource = 'local' | 'npm';
  */
 export interface TenantSpec {
 	slug: string;
+	identifier?: string;
 	domain: string;
+	frontendBase?: string;
 	displayName: string;
+	websiteTitle?: string;
 	activeComponents: string[];
 	activeRecordTypes: string[];
 	adminEmail: string;
