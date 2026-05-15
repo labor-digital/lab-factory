@@ -40,6 +40,16 @@ jobs:
           find Classes -name "*.php" -print0 | xargs -0 -n1 php -l
           php -l ext_emconf.php
           php -l ext_localconf.php
+      - name: Validate ContentBlock configs
+        # Catches the bug class behind factory-core 0.10.0–0.10.1: unquoted
+        # commas inside flow-mapping items (`{ label: Foo, bar, value: x }`)
+        # silently split into spurious keys, leaving items without `value`.
+        # TYPO3's DefaultTcaSchema then crashes the DB analyzer, and per-block
+        # tables (factory_cta_buttons, …) never get created.
+        working-directory: ${{ github.workspace }}
+        run: |
+          pip install --quiet pyyaml
+          python3 scripts/validate-content-blocks.py
 
   typo3-multitenant-api:
     runs-on: ubuntu-latest
