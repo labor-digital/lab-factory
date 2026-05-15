@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/labor-digital/lab-factory/compare/factory-nuxt-layer-v0.2.0...factory-nuxt-layer-v0.2.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* **typo3-extension:** rename `size` identifier to avoid content-blocks reservation ([f34ea73](https://github.com/labor-digital/lab-factory/commit/f34ea7307b1317ab69f0ad7faff15d0bb09fb1a7))
+
 ## [0.2.0](https://github.com/labor-digital/lab-factory/compare/factory-nuxt-layer-v0.1.2...factory-nuxt-layer-v0.2.0) (2026-05-14)
 
 
