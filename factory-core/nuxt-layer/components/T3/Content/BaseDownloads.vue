@@ -38,7 +38,7 @@ const parsedData = computed(() => {
         title: it.title || '',
         desc: it.desc || undefined,
         ext,
-        size: humanSize(file?.['width'] /* not used */, it.size),
+        size: humanSize(file?.['width'] /* not used */, it.file_size ?? it.size),
         group: it.group || undefined,
         url: file?.src || it.url?.url || it.url || '#'
       }

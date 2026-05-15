@@ -16,7 +16,8 @@ export function button(spec: ButtonSpec) {
     to: spec.to ?? '#',
     color: select(spec.color ?? 'primary'),
     variant: select(spec.variant ?? 'solid'),
-    size: select(spec.size ?? 'md'),
+    // YAML identifier is `button_size` — `size` is reserved by content-blocks.
+    button_size: select(spec.size ?? 'md'),
     icon: spec.icon,
     trailing: bool(spec.trailing ?? false)
   })

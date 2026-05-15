@@ -55,11 +55,32 @@ def find_configs(root: Path) -> list[Path]:
 
 ALLOWED_ITEM_KEYS = {"label", "value", "icon", "group", "description"}
 
+# content-blocks reads these keys off the field-definition map *as attributes*
+# of the underlying TCA field config (e.g. `size` = input width, `default` =
+# default value, `eval` = TCA eval string). If a sub-field is given one of
+# these as an *identifier*, content-blocks parses it as a config attribute
+# instead and silently drops the DB column — INSERTs then fail with
+# "Unknown column 'size' in 'field list'" on the auto-generated child table.
+# This list mirrors content-blocks 1.3 FieldType properties; extend as new
+# ones are discovered.
+RESERVED_IDENTIFIERS = {
+    "size", "default", "eval", "max", "min", "mode", "placeholder",
+    "readOnly", "required", "valuePicker", "is_in", "autocomplete",
+}
+
 
 def validate_field(field: dict, path_hint: str, errors: list[str]) -> None:
     """Walk a single TCA-style field definition for Select-items integrity."""
     if not isinstance(field, dict):
         return
+
+    ident = field.get("identifier")
+    if isinstance(ident, str) and ident in RESERVED_IDENTIFIERS:
+        errors.append(
+            f"{path_hint}: identifier '{ident}' collides with a content-blocks "
+            f"reserved field-config key — the DB column will be silently "
+            f"dropped. Rename to e.g. button_{ident} / file_{ident}."
+        )
 
     if field.get("type") == "Select":
         has_proc = bool(field.get("itemsProcFunc"))
