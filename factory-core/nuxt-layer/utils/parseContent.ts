@@ -44,10 +44,8 @@ export function parseButtons(raw: any[] | undefined): ParsedButton[] {
       color: unwrapSelect(b.color, 'primary'),
       variant: unwrapSelect(b.variant, 'solid'),
       // Field identifier is `button_size` in the YAML schemas — `size` itself
-      // is reserved by content-blocks (TCA input width attribute) and would
-      // be silently dropped from the DB column list. Fall back to `b.size`
-      // for any legacy seeds that still emit the old key.
-      size: unwrapSelect(b.button_size ?? b.size, 'md'),
+      // collides with content-blocks' TCA-attribute parsing.
+      size: unwrapSelect(b.button_size, 'md'),
       icon: b.icon || undefined,
       leading: b.leading === '1' || b.leading === true,
       trailing: b.trailing === '1' || b.trailing === true,
