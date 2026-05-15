@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/labor-digital/lab-factory/compare/factory-nuxt-layer-v0.3.0...factory-nuxt-layer-v0.3.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* **nuxt-layer:** include assets/ in published files whitelist ([3c7eda2](https://github.com/labor-digital/lab-factory/commit/3c7eda22a9ce35e6b83849f91bc4134f721257b8))
+
 ## [0.3.0](https://github.com/labor-digital/lab-factory/compare/factory-nuxt-layer-v0.2.1...factory-nuxt-layer-v0.3.0) (2026-05-15)
 
 
